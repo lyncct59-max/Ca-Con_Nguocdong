@@ -1,238 +1,243 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CACON Stock Pro</title>
+  <title>CACON Trading Journal PRO V2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
-          boxShadow: {
-            soft: '0 10px 30px rgba(2,6,23,.18)'
+          colors: {
+            brand: '#0ea56b',
+            soft: '#eff7f3',
+            line: '#e5e7eb',
+            ink: '#111827',
+            panel: '#ffffff',
+            panelSoft: '#f8fafc',
+            good: '#dcfce7',
+            warn: '#fef3c7',
+            bad: '#fee2e2',
+            info: '#dbeafe'
           }
         }
       }
     }
   </script>
-  <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="app-shell min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-  <div class="bg-orb orb-1"></div>
-  <div class="bg-orb orb-2"></div>
-
-  <div id="login-modal" class="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/95 p-4">
-    <div class="glass-card w-full max-w-md p-8 text-center">
-      <h2 class="mb-6 text-3xl font-black tracking-tight">CACON <span class="text-emerald-400">STOCK</span></h2>
-      <div class="space-y-4 text-left">
-        <input id="login-email" type="email" placeholder="Email" class="input" />
-        <input id="login-pass" type="password" placeholder="Mật khẩu" class="input" />
-      </div>
-      <div class="mt-6 grid gap-3">
-        <button onclick="handleLogin()" class="btn-primary">Vào hệ thống</button>
-        <button onclick="enterDemoMode()" class="btn-secondary">Xem bản demo có dữ liệu mẫu</button>
-      </div>
-      <p id="login-error" class="mt-4 text-sm text-rose-400"></p>
-    </div>
-  </div>
-
-  <div class="flex h-screen">
-    <aside class="hidden w-[320px] shrink-0 border-r border-white/10 bg-slate-950/80 p-6 backdrop-blur lg:block">
-      <div class="mb-8 flex items-start gap-4">
-        <div class="rounded-3xl bg-emerald-200/15 p-4 text-emerald-400"><i data-lucide="candlestick-chart" class="h-7 w-7"></i></div>
+<body class="bg-zinc-50 text-zinc-900">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-icon">⌘</div>
         <div>
-          <h1 class="text-3xl font-black leading-tight">CACON Trading<br/>Journal</h1>
-          <p class="mt-1 text-sm text-slate-400">GitHub + Firebase</p>
+          <div class="brand-title">CACON Trading Journal</div>
+          <div class="brand-subtitle">GitHub + Firebase V2</div>
         </div>
       </div>
 
-      <section class="glass-card p-5">
-        <div class="mb-4 flex items-center gap-2 text-base font-bold"><i data-lucide="sparkles" class="h-5 w-5 text-emerald-400"></i>Trader Mission hôm nay</div>
-        <p class="text-sm leading-7 text-slate-300">Ưu tiên thao tác nhanh, giảm tải nhận thức, chỉ đẩy ra các setup đủ chuẩn và loại bỏ lệnh cảm xúc.</p>
-        <div class="mt-5 space-y-3 text-sm">
-          <div class="metric-pill"><span>Số ngày phân phối</span><strong id="sidebar-dist-days">2</strong></div>
-          <div class="metric-pill"><span>Risk Mode</span><strong id="sidebar-risk-mode">Risk-on nhẹ</strong></div>
-          <div class="metric-pill"><span>Ngành mạnh</span><strong id="sidebar-leading-sector">CK · CN</strong></div>
-        </div>
-      </section>
+      <div class="mission-card">
+        <div class="mission-title">✦ Trader Mission hôm nay</div>
+        <p>Ưu tiên thao tác nhanh, giảm tải nhận thức, chỉ đẩy ra các setup đủ chuẩn và loại bỏ lệnh cảm xúc.</p>
+        <div class="mission-stat"><span>Số ngày phân phối</span><strong id="sidebarDistDays">2</strong></div>
+        <div class="mission-stat"><span>Risk Mode</span><strong id="sidebarRiskMode">Risk-on nhẹ</strong></div>
+        <div class="mission-stat"><span>Ngành mạnh</span><strong id="sidebarLeaders">CK · CN</strong></div>
+      </div>
 
-      <nav class="mt-8 space-y-2">
-        <button class="side-link" data-tab-target="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
-        <button class="side-link" data-tab-target="watchlist"><i data-lucide="radar"></i><span>Scan & Watchlist</span></button>
-        <button class="side-link side-link-active" data-tab-target="journal"><i data-lucide="book-open"></i><span>Nhật ký lệnh</span></button>
-        <button class="side-link" data-tab-target="position"><i data-lucide="calculator"></i><span>Position Sizing</span></button>
-        <button class="side-link" data-tab-target="patterns"><i data-lucide="shape-line"></i><span>Mẫu hình</span></button>
-        <button class="side-link" data-tab-target="market"><i data-lucide="line-chart"></i><span>Thị trường</span></button>
-        <button class="side-link" data-tab-target="mindset"><i data-lucide="brain"></i><span>Tâm lý giao dịch</span></button>
+      <nav class="sidebar-nav" id="mainNav">
+        <button class="nav-item active" data-page="dashboard">Dashboard</button>
+        <button class="nav-item" data-page="watchlist">Scan & Watchlist</button>
+        <button class="nav-item" data-page="journal">Nhật ký lệnh</button>
+        <button class="nav-item" data-page="sizing">Position Sizing</button>
+        <button class="nav-item" data-page="patterns">Mẫu hình</button>
+        <button class="nav-item" data-page="market">Thị trường</button>
+        <button class="nav-item" data-page="mindset">Tâm lý giao dịch</button>
+        <button class="nav-item" data-page="review">Review tuần/tháng</button>
       </nav>
+
+      <div class="breath-card">
+        <div class="breath-title">Bài thở trước phiên</div>
+        <div class="breath-subtitle">Hít 4s · Giữ 2s · Thở 6s</div>
+        <div class="progress-track"><div class="progress-fill" style="width: 62%"></div></div>
+        <button class="btn btn-primary btn-full" id="breathBtn">Bắt đầu 2 phút</button>
+      </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto">
-      <header class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 px-4 py-4 backdrop-blur lg:px-8">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div class="mb-2 flex flex-wrap gap-2">
-              <span class="badge badge-green">UX thực chiến</span>
-              <span class="badge badge-blue">Ít thao tác thừa</span>
-              <span class="badge badge-violet">Ra quyết định nhanh</span>
-            </div>
-            <h2 class="text-4xl font-black tracking-tight">Trading Journal PRO UX</h2>
-            <p class="mt-2 text-lg text-slate-400">Thiết kế lại theo luồng dùng thật của trader: scan cơ hội, lọc setup, vào lệnh đúng risk, theo dõi, hậu kiểm.</p>
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <div class="badge-row">
+            <span class="top-badge green">UX thực chiến</span>
+            <span class="top-badge blue">Ít thao tác thừa</span>
+            <span class="top-badge purple">Ra quyết định nhanh</span>
           </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <button onclick="toggleTheme()" class="btn-secondary"><i data-lucide="sun-moon" class="h-4 w-4"></i><span>Sáng/Tối</span></button>
-            <button onclick="openTradeCompareFromPattern()" class="btn-secondary"><i data-lucide="split-square-vertical" class="h-4 w-4"></i><span>So sánh mẫu hình</span></button>
-            <button onclick="logoutApp()" class="btn-secondary"><i data-lucide="log-out" class="h-4 w-4"></i><span>Đăng xuất</span></button>
-          </div>
+          <h1 class="page-title">Trading Journal PRO UX</h1>
+          <p class="page-desc">Thiết kế lại theo luồng dùng thật của trader: scan cơ hội, lọc setup, vào lệnh đúng risk, theo dõi, hậu kiểm.</p>
+        </div>
+        <div class="top-actions">
+          <input id="globalSearch" class="search-input" placeholder="Tìm theo mã, setup, chiến lược..." />
+          <button class="btn btn-ghost">Nhắc review</button>
+          <button class="btn btn-primary" id="quickCreateTrade">Tạo lệnh mới</button>
+          <button class="btn btn-ghost" id="themeToggle">Dark</button>
         </div>
       </header>
 
-      <div class="space-y-8 p-4 lg:p-8">
-        <section id="tab-dashboard" class="tab-panel space-y-6">
-          <div class="grid gap-4 xl:grid-cols-5 md:grid-cols-2">
-            <div class="kpi-card kpi-green"><div><p>Market Pulse</p><h3 id="kpi-market-pulse">Risk-on nhẹ</h3><span>2 ngày phân phối, dòng chứng khoán dẫn dắt</span></div><i data-lucide="activity"></i></div>
-            <div class="kpi-card"><div><p>Watchlist khả dụng</p><h3 id="kpi-watchlist">03</h3><span>Cơ hội gần điểm mua hôm nay</span></div><i data-lucide="bookmark-check"></i></div>
-            <div class="kpi-card"><div><p>Win rate</p><h3 id="kpi-win-rate">66.7%</h3><span>2 thắng / 1 thua / 1 đang mở</span></div><i data-lucide="target"></i></div>
-            <div class="kpi-card kpi-green"><div><p>Trade Quality</p><h3 id="kpi-quality">A-</h3><span>Điểm trung bình quality score</span></div><i data-lucide="gauge"></i></div>
-            <div class="kpi-card kpi-warn"><div><p>Risk cảnh báo</p><h3 id="kpi-alerts">01</h3><span>1 lệnh có dấu hiệu lệch kế hoạch</span></div><i data-lucide="siren"></i></div>
-          </div>
-
-          <div class="grid gap-4 lg:grid-cols-4">
-            <div class="quick-card"><div><h3>Scan cơ hội</h3><p>Từ watchlist sang checklist lệnh</p></div><i data-lucide="scan-search"></i></div>
-            <div class="quick-card"><div><h3>Tạo lệnh mới</h3><p>Nhập lệnh theo checklist + position sizing</p></div><i data-lucide="plus"></i></div>
-            <div class="quick-card"><div><h3>Đánh giá thị trường</h3><p>Số ngày phân phối, ngành dẫn dắt, tâm lý</p></div><i data-lucide="newspaper"></i></div>
-            <div class="quick-card"><div><h3>Hậu kiểm tuần</h3><p>Tự động gom lệnh lỗi lớn để review</p></div><i data-lucide="clipboard-list"></i></div>
-          </div>
-        </section>
-
-        <section id="tab-watchlist" class="tab-panel hidden">
-          <div class="section-card">
-            <div class="section-head"><div><h3>Watchlist gần điểm mua</h3><p>Trang scan nhanh để trader bắt đầu ngày giao dịch.</p></div></div>
-            <div id="watchlist-grid" class="grid gap-4 xl:grid-cols-3 md:grid-cols-2"></div>
-          </div>
-        </section>
-
-        <section id="tab-journal" class="tab-panel space-y-6">
-          <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <div class="section-card">
-              <div class="section-head"><div><h3>Bảng thống kê lệnh</h3><p>Lọc nhanh theo trạng thái, kết quả, chiến lược. Chọn từng dòng để xem chi tiết.</p></div></div>
-              <div class="overflow-x-auto">
-                <table class="trade-table">
-                  <thead><tr><th>Mã</th><th>Ngày mua</th><th>Chiến lược</th><th>Setup</th><th>Ngành</th><th>Entry</th><th>Stop</th><th>P/L %</th><th>R</th><th>Quality</th></tr></thead>
-                  <tbody id="journal-body"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="space-y-6">
-              <div class="section-card">
-                <div class="section-head"><div><h3>Chi tiết lệnh</h3><p id="trade-detail-subtitle">Chọn một lệnh để xem chi tiết</p></div></div>
-                <div id="trade-detail"></div>
-              </div>
-              <div class="section-card">
-                <div class="section-head"><div><h3>So sánh mẫu hình trước khi vào lệnh</h3><p>Tự động liên kết từ module Mẫu hình sang đây.</p></div></div>
-                <div id="pattern-compare-box" class="space-y-4">
-                  <div class="rounded-2xl border border-dashed border-white/10 p-5 text-slate-400">Chọn một mẫu hình ở tab “Mẫu hình” rồi bấm “Liên kết sang so sánh”.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="tab-position" class="tab-panel hidden">
-          <div class="section-card max-w-3xl">
-            <div class="section-head"><div><h3>Position Sizing</h3><p>Tính quy mô vị thế trước khi vào lệnh.</p></div></div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <input id="ps-account" class="input" type="number" placeholder="Tài khoản" value="200000000" />
-              <input id="ps-risk" class="input" type="number" placeholder="Risk %" value="1" />
-              <input id="ps-entry" class="input" type="number" placeholder="Điểm mua" value="128.5" />
-              <input id="ps-stop" class="input" type="number" placeholder="Stop loss" value="123" />
-            </div>
-            <button onclick="calculatePositionSizing()" class="btn-primary mt-4">Tính ngay</button>
-            <div id="position-result" class="mt-5 grid gap-4 md:grid-cols-2"></div>
-          </div>
-        </section>
-
-        <section id="tab-patterns" class="tab-panel hidden space-y-6">
-          <div class="section-card">
-            <div class="section-head">
+      <section class="page active" id="page-dashboard">
+        <div class="kpi-grid" id="kpiGrid"></div>
+        <div class="quick-grid" id="quickActions"></div>
+        <div class="two-col-grid">
+          <section class="panel">
+            <div class="panel-header">
               <div>
-                <h3>Thư viện mẫu hình</h3>
-                <p>Tạo, chỉnh sửa, xóa mẫu hình. Mỗi mẫu có điều kiện vào lệnh, ảnh minh họa và nút liên kết sang phần so sánh trước khi vào lệnh.</p>
-              </div>
-              <button onclick="openPatternModal()" class="btn-primary"><i data-lucide="plus" class="h-4 w-4"></i><span>Tạo mẫu hình</span></button>
-            </div>
-            <div class="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-              <div id="pattern-list" class="space-y-4"></div>
-              <div class="space-y-6">
-                <div class="section-card section-card-inner">
-                  <div class="section-head"><div><h3>Chi tiết mẫu hình</h3><p id="pattern-detail-title">Chọn một mẫu hình để xem chi tiết.</p></div></div>
-                  <div id="pattern-detail-box"></div>
-                </div>
-                <div class="section-card section-card-inner">
-                  <div class="section-head"><div><h3>Điều kiện trước khi vào lệnh</h3><p>Checklist gắn trực tiếp với từng mẫu hình.</p></div></div>
-                  <div id="pattern-condition-box"></div>
-                </div>
+                <h3>Watchlist gần điểm mua</h3>
+                <p>Trang scan nhanh để trader bắt đầu ngày giao dịch trước khi mở phần nhật ký.</p>
               </div>
             </div>
-          </div>
-        </section>
+            <div id="watchlistCards" class="stack"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>Bảng điều khiển trader thực chiến</h3>
+                <p>Đưa các thông tin trader cần nhất lên cùng một vùng: chất lượng lệnh, cảnh báo lỗi, trạng thái thị trường và bước hành động tiếp theo.</p>
+              </div>
+            </div>
+            <div class="trader-board" id="traderBoard"></div>
+          </section>
+        </div>
+      </section>
 
-        <section id="tab-market" class="tab-panel hidden">
-          <div class="section-card">
-            <div class="section-head"><div><h3>Thị trường tổng quan</h3><p>Theo dõi số ngày phân phối, tâm lý và nhóm dẫn dắt.</p></div></div>
-            <div class="grid gap-4 lg:grid-cols-3">
-              <div class="info-tile"><p>Số ngày phân phối</p><h4 id="market-dist">2</h4></div>
-              <div class="info-tile"><p>Tâm lý thị trường</p><h4 id="market-risk">Risk-on nhẹ</h4></div>
-              <div class="info-tile"><p>Ngành dẫn dắt</p><h4 id="market-sector">Chứng khoán</h4></div>
+      <section class="page" id="page-watchlist">
+        <section class="panel">
+          <div class="panel-header"><div><h3>Scan & Watchlist</h3><p>Danh sách cổ phiếu gần điểm mua, liên kết trực tiếp sang mẫu hình và form tạo lệnh.</p></div></div>
+          <div id="watchlistFull" class="stack"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-journal">
+        <div class="subtab-row" id="journalSubTabs">
+          <button class="subtab active" data-subtab="lenh">Lệnh</button>
+          <button class="subtab" data-subtab="phan-tich">Phân tích</button>
+          <button class="subtab" data-subtab="thi-truong">Thị trường</button>
+          <button class="subtab" data-subtab="tam-ly">Tâm lý</button>
+          <button class="subtab" data-subtab="playbook">Playbook</button>
+          <button class="subtab" data-subtab="mistakes">Mistakes</button>
+        </div>
+        <div class="journal-subpage active" id="subtab-lenh">
+          <section class="panel">
+            <div class="panel-header space-between">
+              <div>
+                <h3>Bảng thống kê lệnh</h3>
+                <p>Lọc nhanh theo trạng thái, kết quả, chiến lược. Mỗi dòng hiện luôn chất lượng setup và mức độ đúng kế hoạch.</p>
+              </div>
+              <div class="filter-row">
+                <select id="statusFilter" class="mini-select"><option value="all">Tất cả trạng thái</option><option value="open">Đang mở</option><option value="closed">Đã đóng</option></select>
+                <select id="resultFilter" class="mini-select"><option value="all">Tất cả kết quả</option><option value="win">Lãi</option><option value="loss">Lỗ</option><option value="open">Đang mở</option></select>
+                <select id="strategyFilter" class="mini-select"><option value="all">Mọi chiến lược</option></select>
+                <button class="btn btn-ghost">Bộ lọc nâng cao</button>
+              </div>
+            </div>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Mã</th><th>Ngày mua</th><th>Chiến lược</th><th>Setup</th><th>Ngành</th><th>Entry</th><th>Stop</th><th>P/L %</th><th>R</th><th>Quality</th><th>Execution</th><th>Kết quả</th><th>Sai lầm</th><th>Chart</th></tr></thead><tbody id="journalTableBody"></tbody></table></div>
+          </section>
+          <div class="detail-grid">
+            <section class="panel" id="tradeDetailPanel"></section>
+            <div class="stack">
+              <section class="panel" id="sizingPanel"></section>
+              <section class="panel" id="warningPanel"></section>
             </div>
           </div>
-        </section>
+        </div>
+        <div class="journal-subpage" id="subtab-phan-tich"><section class="three-grid" id="analysisCards"></section></div>
+        <div class="journal-subpage" id="subtab-thi-truong"><section class="market-grid" id="marketPanel"></section></div>
+        <div class="journal-subpage" id="subtab-tam-ly"><section class="mindset-grid" id="mindsetPanel"></section></div>
+        <div class="journal-subpage" id="subtab-playbook"><section class="three-grid" id="playbookPanel"></section></div>
+        <div class="journal-subpage" id="subtab-mistakes"><section class="two-col-grid" id="mistakesPanel"></section></div>
+      </section>
 
-        <section id="tab-mindset" class="tab-panel hidden">
-          <div class="section-card max-w-4xl">
-            <div class="section-head"><div><h3>Rèn luyện tâm lý</h3><p>Thở cơ hoành để giảm FOMO và ổn định quyết định.</p></div></div>
-            <div class="grid gap-6 lg:grid-cols-2">
-              <div class="info-tile"><p>Bài thở</p><h4>Hít 4s → Giữ 2s → Thở 6s</h4><span>Lặp lại 10 vòng trước phiên hoặc sau lệnh thua.</span></div>
-              <div class="info-tile"><p>Streak tuần này</p><h4>4 / 5 phiên</h4><span>Duy trì sự bình tĩnh trước khi ra quyết định.</span></div>
+      <section class="page" id="page-sizing">
+        <div class="detail-grid">
+          <section class="panel" id="sizingStandalone"></section>
+          <section class="panel" id="comparePatternPanel"></section>
+        </div>
+      </section>
+
+      <section class="page" id="page-patterns">
+        <section class="panel">
+          <div class="panel-header space-between">
+            <div>
+              <h3>Thư viện mẫu hình</h3>
+              <p>Tạo, chỉnh sửa, xóa mẫu hình. Mỗi mẫu hình có ảnh minh họa, điều kiện nền, điều kiện kích hoạt và liên kết sang phần so sánh trước khi vào lệnh.</p>
             </div>
+            <button class="btn btn-primary" id="createPatternBtn">+ Tạo mẫu hình</button>
+          </div>
+          <div class="pattern-layout">
+            <div id="patternList" class="pattern-list"></div>
+            <div id="patternDetail" class="panel subtle"></div>
           </div>
         </section>
-      </div>
+      </section>
+
+      <section class="page" id="page-market"><section class="market-grid" id="marketPagePanel"></section></section>
+      <section class="page" id="page-mindset"><section class="mindset-grid" id="mindsetPagePanel"></section></section>
+      <section class="page" id="page-review">
+        <div class="two-col-grid">
+          <section class="panel"><div class="panel-header"><div><h3>Hậu kiểm tuần</h3><p>Tự động gom lệnh lỗi lớn để review và tạo rule chặn lỗi.</p></div></div><div id="reviewList" class="stack"></div></section>
+          <section class="panel"><div class="panel-header"><div><h3>Tổng kết bài học</h3><p>Ghi chú nhanh các quy tắc đã rút ra từ tuần giao dịch.</p></div></div><textarea id="reviewNotes" class="note-area">1. Không mua khi market pulse chưa xác nhận.
+2. Chạm stop phải thoát 100%.
+3. A setup mới được phép giải ngân lớn.</textarea><button class="btn btn-primary mt-4">Lưu tổng kết</button></section>
+        </div>
+      </section>
     </main>
   </div>
 
-  <div id="pattern-modal" class="fixed inset-0 z-[350] hidden items-center justify-center bg-slate-950/80 p-4">
-    <div class="glass-card w-full max-w-3xl p-6">
-      <div class="mb-4 flex items-center justify-between">
-        <div>
-          <h3 id="pattern-modal-title" class="text-2xl font-black">Tạo mẫu hình</h3>
-          <p class="text-sm text-slate-400">Nhập đầy đủ điều kiện, ảnh minh họa và liên kết so sánh.</p>
+  <div class="modal hidden" id="tradeModal">
+    <div class="modal-card large">
+      <div class="modal-header"><h3>Tạo / chỉnh sửa lệnh</h3><button class="icon-btn" data-close="tradeModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid compact">
+          <label>Mã<input id="tradeTicker" class="text-input" /></label>
+          <label>Ngày mua<input id="tradeDate" type="date" class="text-input" /></label>
+          <label>Chiến lược<input id="tradeStrategy" class="text-input" /></label>
+          <label>Setup<input id="tradeSetup" class="text-input" /></label>
+          <label>Ngành<input id="tradeSector" class="text-input" /></label>
+          <label>Điểm mua<input id="tradeEntry" type="number" class="text-input" /></label>
+          <label>Stop loss<input id="tradeStop" type="number" class="text-input" /></label>
+          <label>Giá bán<input id="tradeExit" type="number" class="text-input" /></label>
+          <label>Số lượng<input id="tradeQty" type="number" class="text-input" /></label>
+          <label>Kết quả<select id="tradeResult" class="text-input"><option value="win">Lãi</option><option value="loss">Lỗ</option><option value="open">Đang mở</option></select></label>
+          <label>Cảm xúc<input id="tradeEmotion" class="text-input" /></label>
+          <label>Sai lầm<input id="tradeMistake" class="text-input" /></label>
+          <label>Điểm quality<input id="tradeScore" type="number" class="text-input" /></label>
+          <label>Market pulse<input id="tradePulse" class="text-input" /></label>
+          <label class="span-2">Ghi chú<textarea id="tradeNote" class="text-input"></textarea></label>
         </div>
-        <button onclick="closePatternModal()" class="btn-icon"><i data-lucide="x" class="h-5 w-5"></i></button>
       </div>
-      <div class="grid gap-4 md:grid-cols-2">
-        <input id="pattern-name" class="input" placeholder="Tên mẫu hình" />
-        <input id="pattern-strategy" class="input" placeholder="Chiến lược (Minervini/CANSLIM...)" />
-        <input id="pattern-image" class="input md:col-span-2" placeholder="Ảnh minh họa (URL hoặc đường dẫn ảnh)" />
-        <textarea id="pattern-desc" class="input min-h-[96px] md:col-span-2" placeholder="Mô tả mẫu hình"></textarea>
-        <textarea id="pattern-conditions" class="input min-h-[120px] md:col-span-2" placeholder="Mỗi điều kiện 1 dòng&#10;Ví dụ: Xu hướng trước đó tăng mạnh&#10;Volume co hẹp dần"></textarea>
-        <textarea id="pattern-triggers" class="input min-h-[120px] md:col-span-2" placeholder="Các điều kiện xác nhận trước khi bấm mua, mỗi dòng 1 ý"></textarea>
-      </div>
-      <div class="mt-5 flex flex-wrap justify-end gap-3">
-        <button onclick="closePatternModal()" class="btn-secondary">Hủy</button>
-        <button onclick="savePattern()" class="btn-primary">Lưu mẫu hình</button>
-      </div>
+      <div class="modal-footer"><button class="btn btn-ghost" data-close="tradeModal">Hủy</button><button class="btn btn-primary" id="saveTradeBtn">Lưu lệnh</button></div>
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  <div class="modal hidden" id="patternModal">
+    <div class="modal-card large">
+      <div class="modal-header"><h3>Tạo / chỉnh sửa mẫu hình</h3><button class="icon-btn" data-close="patternModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid compact">
+          <label>Tên mẫu hình<input id="patternName" class="text-input" /></label>
+          <label>Chiến lược<input id="patternStrategy" class="text-input" /></label>
+          <label class="span-2">Mô tả<textarea id="patternDescription" class="text-input"></textarea></label>
+          <label>Ảnh từ URL<input id="patternImageUrl" class="text-input" placeholder="https://..." /></label>
+          <label>Chèn ảnh từ máy<input id="patternImageFile" type="file" accept="image/*" class="text-input file-input" /></label>
+          <label class="span-2">Điều kiện nền (mỗi dòng 1 điều kiện)<textarea id="patternConditions" class="text-input"></textarea></label>
+          <label class="span-2">Điều kiện kích hoạt / trước khi vào lệnh<textarea id="patternTriggers" class="text-input"></textarea></label>
+        </div>
+        <div class="preview-box" id="patternPreviewBox">Chưa có ảnh minh họa</div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-ghost" data-close="patternModal">Hủy</button><button class="btn btn-primary" id="savePatternBtn">Lưu mẫu hình</button></div>
+    </div>
+  </div>
+
+  <button class="floating-btn" id="floatingQuickBtn">⚡ Thêm lệnh nhanh</button>
   <script src="firebase.js"></script>
   <script src="app.js"></script>
 </body>
