@@ -63,7 +63,6 @@ const defaultData = {
 
 let state = loadState();
 let session = { isDemo: true, loggedIn: false, uid: 'demo-user', email: 'demo@local', role: 'demo' };
-let firestoreReady = false;
 let selectedTradeId = state.journal[0]?.id || null;
 let selectedPatternId = state.patterns[0]?.id || null;
 let editingWatchId = null;
@@ -144,7 +143,6 @@ function init() {
       session = { isDemo: false, loggedIn: true, uid: user.uid, email: user.email || '', role: userRole };
       $('#loginModal').classList.add('hidden');
       renderAccount();
-      await loadFirestoreData();
     }
   });
 }
@@ -165,8 +163,6 @@ function bindEvents() {
   $('#saveTradeBtn').addEventListener('click', saveTrade);
   $('#openPatternModalBtn').addEventListener('click', ()=>openPatternModal());
   $('#savePatternBtn').addEventListener('click', savePattern);
-  $('#uploadTradeImageBtn').addEventListener('click', ()=>handleStorageUpload('trade'));
-  $('#uploadPatternImageBtn').addEventListener('click', ()=>handleStorageUpload('pattern'));
   $('#editPatternBtn').addEventListener('click', ()=> { const p = getSelectedPattern(); if (p) openPatternModal(p.id); });
   $('#deletePatternBtn').addEventListener('click', deleteSelectedPattern);
   $('#applyPatternToJournal').addEventListener('click', () => { switchTab('journal'); const t = getSelectedTrade(); if (t) { t.patternId = selectedPatternId; applyAutoSuggestToTrade(t); saveState(); renderJournal(); } });
@@ -212,8 +208,7 @@ function renderAccount() {
     <div><span class="text-zinc-500 dark:text-zinc-400">Email:</span> ${session.email}</div>
     <div><span class="text-zinc-500 dark:text-zinc-400">UID:</span> ${session.uid}</div>
     <div><span class="text-zinc-500 dark:text-zinc-400">Role:</span> ${session.role}</div>
-    <div><span class="text-zinc-500 dark:text-zinc-400">Mode:</span> ${session.isDemo ? 'Demo' : 'Firebase'}</div>
-    <div><span class="text-zinc-500 dark:text-zinc-400">Sync:</span> ${firestoreReady ? 'Đã kết nối Firestore' : (session.isDemo ? 'Local demo' : 'Đang chờ dữ liệu')}</div>`;
+    <div><span class="text-zinc-500 dark:text-zinc-400">Mode:</span> ${session.isDemo ? 'Demo' : 'Firebase'}</div>`;
 }
 
 function renderAll() {
@@ -262,7 +257,7 @@ function renderWatchGroup(target, status) {
 }
 window.openTradeFromWatch = function(id){ const item = state.watchlists.find(x=>x.id===id); openTradeModal(null,item); };
 window.editWatch = function(id){ openWatchModal(id); };
-window.deleteWatch = async function(id){ state.watchlists = state.watchlists.filter(x=>x.id!==id); saveState(); renderAll(); await deleteFirestoreDoc('watchlist', id); };
+window.deleteWatch = function(id){ state.watchlists = state.watchlists.filter(x=>x.id!==id); saveState(); renderAll(); };
 window.openPatternFromWatch = function(patternId){ if(!patternId) return; selectedPatternId = patternId; switchTab('patterns'); renderPatterns(); };
 
 function openWatchModal(id=null) {
@@ -272,13 +267,11 @@ function openWatchModal(id=null) {
   $('#watchTicker').value = item.ticker || ''; $('#watchStatus').value = item.status || 'Gần điểm mua'; $('#watchSetup').value = item.setup || ''; $('#watchBuyZone').value = item.buyZone || ''; $('#watchRisk').value = item.risk || ''; populatePatternSelect('#watchPatternId', item.patternId || '');
   $('#watchModal').classList.remove('hidden');
 }
-async function saveWatchlistItem() {
+function saveWatchlistItem() {
   const payload = { id: editingWatchId || uid(), ticker: $('#watchTicker').value.trim().toUpperCase(), status: $('#watchStatus').value, setup: $('#watchSetup').value.trim(), buyZone: $('#watchBuyZone').value.trim(), risk: $('#watchRisk').value.trim(), patternId: $('#watchPatternId').value };
   if (!payload.ticker) return;
   if (editingWatchId) state.watchlists = state.watchlists.map(x=>x.id===editingWatchId?payload:x); else state.watchlists.unshift(payload);
-  saveState();
-  await upsertFirestoreDoc('watchlist', payload, payload.id);
-  $('#watchModal').classList.add('hidden'); renderAll();
+  saveState(); $('#watchModal').classList.add('hidden'); renderAll();
 }
 
 function getFilteredTrades() {
@@ -351,11 +344,10 @@ function openTradeModal(id=null, fromWatch=null) {
   $('#tradeEmotion').value = trade?.emotion || 'Tự tin';
   $('#tradeNote').value = trade?.note || '';
   $('#tradeImage').value = trade?.image || '';
-  $('#tradeUploadStatus').textContent = ''; if($('#tradeImageFile')) $('#tradeImageFile').value='';
   populatePatternSelect('#tradePatternId', sourcePatternId);
   $('#tradeModal').classList.remove('hidden');
 }
-async function saveTrade() {
+function saveTrade() {
   const patternId = $('#tradePatternId').value;
   const trade = {
     id: editingTradeId || uid(),
@@ -381,9 +373,7 @@ async function saveTrade() {
   const summary = summarizeTradeQuality(trade.tradeQuality);
   trade.score = summary.total; trade.qualityGrade = summary.grade;
   if (editingTradeId) state.journal = state.journal.map(x=>x.id===editingTradeId?trade:x); else state.journal.unshift(trade);
-  selectedTradeId = trade.id; saveState();
-  await upsertFirestoreDoc('journal', trade, trade.id);
-  $('#tradeModal').classList.add('hidden'); renderAll(); switchTab('journal');
+  selectedTradeId = trade.id; saveState(); $('#tradeModal').classList.add('hidden'); renderAll(); switchTab('journal');
 }
 
 function populatePatternSelect(sel, selected='') {
@@ -410,27 +400,22 @@ function openPatternModal(id=null) {
   editingPatternId = id;
   const p = id ? state.patterns.find(x=>x.id===id) : { name:'', strategy:'', description:'', image:'', conditions:[], triggers:[] };
   $('#patternModalTitle').textContent = id ? 'Chỉnh sửa mẫu hình' : 'Tạo mẫu hình';
-  $('#patternName').value = p.name || ''; $('#patternStrategy').value = p.strategy || ''; $('#patternDescription').value = p.description || ''; $('#patternImage').value = p.image || ''; $('#patternConditions').value = (p.conditions || []).join('\n'); $('#patternTriggers').value = (p.triggers || []).join('\n'); $('#patternUploadStatus').textContent=''; if($('#patternImageFile')) $('#patternImageFile').value='';
+  $('#patternName').value = p.name || ''; $('#patternStrategy').value = p.strategy || ''; $('#patternDescription').value = p.description || ''; $('#patternImage').value = p.image || ''; $('#patternConditions').value = (p.conditions || []).join('\n'); $('#patternTriggers').value = (p.triggers || []).join('\n');
   $('#patternModal').classList.remove('hidden');
 }
-async function savePattern() {
+function savePattern() {
   const payload = { id: editingPatternId || uid(), name: $('#patternName').value.trim(), strategy: $('#patternStrategy').value.trim(), description: $('#patternDescription').value.trim(), image: $('#patternImage').value.trim() || 'mau hinh.png', conditions: parseLines($('#patternConditions').value), triggers: parseLines($('#patternTriggers').value), tqBias: buildAutoSuggestedTradeQuality('vcp','',state.market).groups.reduce((acc,g)=> (acc[g.id]=g.items.reduce((a,b)=>a+Number(b.score||0),0), acc), {}) };
   if (!payload.name) return;
   if (editingPatternId) state.patterns = state.patterns.map(x=>x.id===editingPatternId?payload:x); else state.patterns.unshift(payload);
-  selectedPatternId = payload.id; saveState();
-  await upsertFirestoreDoc('patterns', payload, payload.id);
-  $('#patternModal').classList.add('hidden'); renderAll(); switchTab('patterns');
+  selectedPatternId = payload.id; saveState(); $('#patternModal').classList.add('hidden'); renderAll(); switchTab('patterns');
 }
-async function deleteSelectedPattern() {
+function deleteSelectedPattern() {
   if (!selectedPatternId) return;
-  const deletingId = selectedPatternId;
-  state.patterns = state.patterns.filter(x=>x.id!==deletingId);
-  state.watchlists = state.watchlists.map(w=>w.patternId===deletingId?{...w, patternId: state.patterns[0]?.id || ''}:w);
-  state.journal = state.journal.map(t=>t.patternId===deletingId?{...t, patternId: state.patterns[0]?.id || ''}:t);
+  state.patterns = state.patterns.filter(x=>x.id!==selectedPatternId);
+  state.watchlists = state.watchlists.map(w=>w.patternId===selectedPatternId?{...w, patternId: state.patterns[0]?.id || ''}:w);
+  state.journal = state.journal.map(t=>t.patternId===selectedPatternId?{...t, patternId: state.patterns[0]?.id || ''}:t);
   selectedPatternId = state.patterns[0]?.id || null; saveState(); renderAll();
-  await deleteFirestoreDoc('patterns', deletingId);
 }
-
 
 function renderPositionSizing() {
   $('#posAccount').value ||= 200000000; $('#posRiskPercent').value ||= 1; $('#posEntry').value ||= 128.5; $('#posStop').value ||= 123;
@@ -440,7 +425,7 @@ function renderPositionSizing() {
 }
 
 function renderMarket() { $('#marketDistDays').value = state.market.distDays; $('#marketSentiment').value = state.market.sentiment; $('#marketLeaders').value = state.market.leaders; updateMarketRecommendation(); }
-async function saveMarket() { state.market.distDays = Number($('#marketDistDays').value || 0); state.market.sentiment = $('#marketSentiment').value.trim(); state.market.leaders = $('#marketLeaders').value.trim(); state.market.riskMode = state.market.distDays <= 2 ? 'Risk ON' : state.market.distDays === 3 ? 'Giảm Margin' : state.market.distDays === 4 ? 'Tỷ cổ phiếu 50%' : 'Giảm tỷ trọng tối đa'; saveState(); renderAll(); await saveMarketRemote(); }
+function saveMarket() { state.market.distDays = Number($('#marketDistDays').value || 0); state.market.sentiment = $('#marketSentiment').value.trim(); state.market.leaders = $('#marketLeaders').value.trim(); state.market.riskMode = state.market.distDays <= 2 ? 'Risk ON' : state.market.distDays === 3 ? 'Giảm Margin' : state.market.distDays === 4 ? 'Tỷ cổ phiếu 50%' : 'Giảm tỷ trọng tối đa'; saveState(); renderAll(); }
 function updateMarketRecommendation() { const d = Number($('#marketDistDays').value || state.market.distDays || 0); let text=''; if (d<=2) text='1-2 ngày: Thị trường bình thường, có thể giao dịch setup chuẩn.'; else if (d===3) text='3 ngày: Giảm Margin, chọn lọc kỹ setup.'; else if (d===4) text='4 ngày: Tỷ cổ phiếu 50%, tránh mua đuổi.'; else text='5-6 ngày trở lên: Giảm tỷ trọng cổ phiếu tối đa, canh mã dài hạn.'; $('#marketRecommendation').innerHTML = `<p class="font-semibold">${text}</p><p class="mt-3 text-zinc-600 dark:text-zinc-300">Ngành dẫn dắt hiện tại: ${$('#marketLeaders').value || state.market.leaders}. Tâm lý thị trường: ${$('#marketSentiment').value || state.market.sentiment}.</p>`; }
 $('#marketDistDays')?.addEventListener('input', updateMarketRecommendation);
 
@@ -473,114 +458,5 @@ function renderReview() {
 }
 
 function showImage(src){ $('#imageViewerImg').src = src; $('#imageViewer').classList.remove('hidden'); }
-
-
-async function handleStorageUpload(type) {
-  if (session.isDemo || !currentUser) {
-    alert('Hãy đăng nhập Firebase để tải ảnh lên Storage.');
-    return;
-  }
-  const fileInput = type === 'trade' ? $('#tradeImageFile') : $('#patternImageFile');
-  const statusEl = type === 'trade' ? $('#tradeUploadStatus') : $('#patternUploadStatus');
-  const targetInput = type === 'trade' ? $('#tradeImage') : $('#patternImage');
-  const file = fileInput?.files?.[0];
-  if (!file) {
-    statusEl.textContent = 'Chưa chọn file ảnh.';
-    return;
-  }
-  try {
-    statusEl.textContent = 'Đang tải ảnh...';
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const safeName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const folder = type === 'trade' ? 'trade-images' : 'pattern-images';
-    const ref = storage.ref().child(`users/${currentUser.uid}/${folder}/${safeName}`);
-    const snap = await ref.put(file);
-    const url = await snap.ref.getDownloadURL();
-    targetInput.value = url;
-    statusEl.textContent = 'Tải ảnh thành công.';
-  } catch (error) {
-    console.error('Storage upload error:', error);
-    statusEl.textContent = 'Tải ảnh thất bại: ' + (error.message || 'Unknown error');
-  }
-}
-
-
-async function loadFirestoreData() {
-  if (session.isDemo || !currentUser) return;
-  try {
-    const [marketSnap, watchSnap, journalSnap, patternSnap] = await Promise.all([
-      db.collection('settings').doc('market').get(),
-      db.collection('watchlist').where('userId', '==', currentUser.uid).get(),
-      db.collection('journal').where('userId', '==', currentUser.uid).get(),
-      db.collection('patterns').where('userId', '==', currentUser.uid).get()
-    ]);
-
-    if (marketSnap.exists) {
-      state.market = { ...state.market, ...marketSnap.data() };
-    }
-
-    const remoteWatch = watchSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (remoteWatch.length) state.watchlists = remoteWatch;
-
-    const remoteJournal = journalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (remoteJournal.length) state.journal = remoteJournal.map(t => ({
-      ...t,
-      tradeQuality: t.tradeQuality || buildAutoSuggestedTradeQuality(t.patternId || 'vcp', t.strategy || '', state.market),
-      score: Number(t.score || summarizeTradeQuality(t.tradeQuality || buildAutoSuggestedTradeQuality(t.patternId || 'vcp', t.strategy || '', state.market)).total),
-      qualityGrade: t.qualityGrade || gradeFromScore(Number(t.score || 0))
-    }));
-
-    const remotePatterns = patternSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (remotePatterns.length) state.patterns = remotePatterns;
-
-    firestoreReady = true;
-    saveState();
-    renderAll();
-  } catch (error) {
-    console.error('Firestore load error:', error);
-  }
-}
-
-async function upsertFirestoreDoc(collectionName, payload, explicitId = null) {
-  if (session.isDemo || !currentUser) return;
-  const data = JSON.parse(JSON.stringify(payload));
-  data.userId = currentUser.uid;
-  data.updatedAt = Date.now();
-  try {
-    if (explicitId) {
-      await db.collection(collectionName).doc(explicitId).set(data, { merge: true });
-      return explicitId;
-    }
-    const ref = data.id ? db.collection(collectionName).doc(data.id) : db.collection(collectionName).doc();
-    data.id = ref.id;
-    await ref.set(data, { merge: true });
-    return ref.id;
-  } catch (error) {
-    console.error(`Firestore upsert error [${collectionName}]:`, error);
-    throw error;
-  }
-}
-
-async function deleteFirestoreDoc(collectionName, id) {
-  if (session.isDemo || !currentUser || !id) return;
-  try {
-    await db.collection(collectionName).doc(id).delete();
-  } catch (error) {
-    console.error(`Firestore delete error [${collectionName}]:`, error);
-  }
-}
-
-async function saveMarketRemote() {
-  if (session.isDemo || !currentUser) return;
-  try {
-    await db.collection('settings').doc('market').set({
-      ...state.market,
-      updatedBy: currentUser.email || currentUser.uid,
-      updatedAt: Date.now()
-    }, { merge: true });
-  } catch (error) {
-    console.error('Save market remote error:', error);
-  }
-}
 
 init();
