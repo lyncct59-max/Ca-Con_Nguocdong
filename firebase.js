@@ -17,21 +17,37 @@ const storage = firebase.storage();
 let currentUser = null;
 let userRole = 'user';
 
+// Thay thế trong firebase.js
 async function checkAdminRole(uid) {
   try {
     const docSnap = await db.collection('users').doc(uid).get();
     if (docSnap.exists) {
       const data = docSnap.data();
-      // Chỉnh sửa: Chấp nhận cả "Admin" viết hoa từ ảnh Firestore của bạn
-      if (data.role === 'Admin' || data.role === 'admin') {
+      // Chấp nhận mọi biến thể của chữ Admin
+      if (data.role && data.role.toLowerCase() === 'admin') {
         userRole = 'admin';
         document.body.classList.add('is-admin');
         return true;
       }
     }
-    console.warn("Không tìm thấy role Admin cho user này.");
   } catch (e) {
-    console.error("Lỗi xác thực quyền:", e);
+    console.error("Lỗi xác thực, nhưng vẫn cho phép vào chế độ User:", e);
   }
-  return false;
+  // Nếu lỗi vẫn cho vào hệ thống với quyền user để không bị kẹt
+  userRole = 'user'; 
+  return true; 
+}
+
+// Trong hàm login của bạn (file app.js hoặc firebase.js)
+async function handleLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  try {
+    const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+    console.log("Đăng nhập thành công:", userCredential.user.email);
+    // Sau khi login thành công, tự ẩn modal kể cả khi check role chậm
+    document.getElementById('login-modal').classList.add('hidden');
+  } catch (error) {
+    alert("Lỗi đăng nhập: " + error.message);
+  }
 }
