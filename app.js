@@ -203,12 +203,15 @@ function initApp() {
       currentUser = user;
       document.getElementById('login-modal').classList.add('hidden');
       await checkAdminRole(user.uid);
+      hydrateAccountProfile();
     } else {
       document.getElementById('login-modal').classList.remove('hidden');
     }
   });
   renderAll();
+  hydrateAccountProfile();
 }
+
 
 function bindEvents(){
   document.getElementById('global-search').addEventListener('input', renderJournalTab);
@@ -857,3 +860,85 @@ function tipCard(title,desc,icon,color){ return `<div class="soft-box p-4"><div 
 function pct(a,b){ return b ? round2(a*100/b) + '%' : '0%'; }
 function fmt(n){ return Number(n||0).toLocaleString('vi-VN'); }
 function escapeHtml(s){ return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+
+function openAccountModal(){
+  hydrateAccountProfile();
+  document.getElementById('account-modal').classList.remove('hidden');
+  lucide.createIcons();
+}
+function closeAccountModal(){ document.getElementById('account-modal').classList.add('hidden'); }
+function getAccountProfile(){
+  return appState.accountProfile || { displayName:'Admin', note:'', preferredStrategy:'Mark Minervini' };
+}
+function hydrateAccountProfile(){
+  const profile = getAccountProfile();
+  const email = currentUser?.email || 'Chưa đăng nhập';
+  const uidText = currentUser?.uid || 'N/A';
+  const display = profile.displayName || currentUser?.email?.split('@')[0] || 'Trader';
+  if(document.getElementById('account-display-name')) document.getElementById('account-display-name').textContent = display;
+  if(document.getElementById('account-email-text')) document.getElementById('account-email-text').textContent = email;
+  if(document.getElementById('account-uid-text')) document.getElementById('account-uid-text').textContent = uidText;
+  if(document.getElementById('account-role-text')) document.getElementById('account-role-text').textContent = userRole;
+  if(document.getElementById('account-status-text')) document.getElementById('account-status-text').textContent = currentUser ? 'Đang đăng nhập' : 'Chưa đăng nhập';
+  if(document.getElementById('account-name-input')) document.getElementById('account-name-input').value = profile.displayName || '';
+  if(document.getElementById('account-note-input')) document.getElementById('account-note-input').value = profile.note || '';
+  if(document.getElementById('account-new-email')) document.getElementById('account-new-email').value = '';
+}
+function showAccountFeedback(message, ok=true){
+  const box = document.getElementById('account-feedback');
+  if(!box) return;
+  box.textContent = message;
+  box.classList.remove('hidden','feedback-success','feedback-error');
+  box.classList.add(ok ? 'feedback-success' : 'feedback-error');
+}
+function prefillCurrentEmail(){
+  if(!currentUser?.email) return showAccountFeedback('Chưa có email hiện tại để điền.', false);
+  document.getElementById('account-new-email').value = currentUser.email;
+}
+async function changeCurrentUserEmail(){
+  const newEmail = document.getElementById('account-new-email').value.trim();
+  if(!currentUser) return showAccountFeedback('Bạn chưa đăng nhập.', false);
+  if(!newEmail) return showAccountFeedback('Hãy nhập email mới.', false);
+  try {
+    await currentUser.updateEmail(newEmail);
+    const profile = getAccountProfile();
+    if (db && currentUser.uid) {
+      try { await db.collection('users').doc(currentUser.uid).set({ email: newEmail, name: profile.displayName || profile.name || 'Trader', role: userRole, theme: appState.theme }, { merge: true }); } catch(e){}
+    }
+    showAccountFeedback('Đã cập nhật email đăng nhập thành công.');
+    hydrateAccountProfile();
+  } catch (error) {
+    showAccountFeedback('Không thể đổi email: ' + error.message, false);
+  }
+}
+async function sendResetPassword(){
+  const email = currentUser?.email || document.getElementById('account-new-email').value.trim();
+  if(!email) return showAccountFeedback('Không tìm thấy email để gửi reset password.', false);
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showAccountFeedback('Đã gửi email đặt lại mật khẩu tới ' + email + '.');
+  } catch (error) {
+    showAccountFeedback('Gửi email reset thất bại: ' + error.message, false);
+  }
+}
+function saveAccountProfile(){
+  appState.accountProfile = {
+    ...getAccountProfile(),
+    displayName: document.getElementById('account-name-input').value.trim() || 'Trader',
+    note: document.getElementById('account-note-input').value.trim()
+  };
+  saveState();
+  hydrateAccountProfile();
+  showAccountFeedback('Đã lưu hồ sơ hiển thị.');
+}
+async function handleLogout(){
+  try {
+    await auth.signOut();
+    currentUser = null;
+    closeAccountModal();
+    document.getElementById('login-modal').classList.remove('hidden');
+  } catch (error) {
+    showAccountFeedback('Đăng xuất thất bại: ' + error.message, false);
+  }
+}
