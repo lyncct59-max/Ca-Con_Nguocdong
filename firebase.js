@@ -1,6 +1,4 @@
 const firebaseConfig = {
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
   apiKey: "AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0",
   authDomain: "cacon-stock.firebaseapp.com",
   projectId: "cacon-stock",
@@ -21,14 +19,18 @@ let userRole = 'user';
 async function checkAdminRole(uid) {
   try {
     const docSnap = await db.collection('users').doc(uid).get();
-    if (docSnap.exists && docSnap.data().role === 'admin') {
-      userRole = 'admin';
-      document.body.classList.add('is-admin');
-      return true;
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      // Khớp với giá trị "Admin" viết hoa trong ảnh Firestore của bạn
+      if (data.role === 'Admin' || data.role === 'admin') {
+        userRole = 'admin';
+        document.body.classList.add('is-admin');
+        return true;
+      }
     }
   } catch (e) {
-    console.warn('Không đọc được role từ Firestore, dùng chế độ local demo.', e);
+    console.warn('Lỗi đọc Role, đang dùng chế độ demo.', e);
   }
-  userRole = 'admin';
-  return true;
+  userRole = 'user';
+  return false;
 }
