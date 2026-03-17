@@ -1,39 +1,10 @@
-// Firebase compat boot with safe fallback to demo mode
+// Local-only stub for V3 Pro LocalStorage mode.
 window.firebaseBoot = {
-  enabled: false,
-  ready: false,
-  app: null,
+  mode: 'local_storage',
   auth: null,
   db: null,
   storage: null,
+  adminUid: 'local_admin_demo',
   error: null,
-  adminUid: 'sq6iio2bSpOoapedYnTXRmn6zNz2'
+  ready: true
 };
-
-(function () {
-  try {
-    if (!window.firebase) throw new Error('Firebase SDK chưa tải');
-
-    // Thay config thật của bạn nếu cần
-    const firebaseConfig = {
-      apiKey: 'AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0',
-      authDomain: 'cacon-stock.firebaseapp.com',
-      projectId: 'cacon-stock',
-      storageBucket: 'cacon-stock.firebasestorage.app',
-      messagingSenderId: '481305691314',
-      appId: '1:481305691314:web:43931c5be684941225f5ab',
-      measurementId: 'G-R7YP8HFKRT'
-    };
-
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    window.firebaseBoot.app = firebase.app();
-    window.firebaseBoot.auth = firebase.auth();
-    window.firebaseBoot.db = firebase.firestore();
-    window.firebaseBoot.storage = firebase.storage();
-    window.firebaseBoot.enabled = true;
-    window.firebaseBoot.ready = true;
-  } catch (e) {
-    console.warn('Firebase fallback demo mode:', e.message);
-    window.firebaseBoot.error = e;
-  }
-})();

@@ -1,719 +1,593 @@
-const $ = (s, p = document) => p.querySelector(s);
-const $$ = (s, p = document) => [...p.querySelectorAll(s)];
-const LS_KEY = 'cacon_v44_pro_full';
-const REVIEW_KEY = 'cacon_v44_review';
+const LS_KEYS = {
+  watchlist: 'cacon_v3_watchlist',
+  journal: 'cacon_v3_journal',
+  patterns: 'cacon_v3_patterns',
+  market: 'cacon_v3_market',
+  mindset: 'cacon_v3_mindset',
+  reviews: 'cacon_v3_reviews',
+  theme: 'cacon_v3_theme'
+};
 
-const tradeQualitySchema = {
-  version: '2.0-auto-suggest',
-  groups: [
-    { id: 'pattern', label: 'Chất lượng mẫu hình', max: 30, items: [
-      { id: 'priorTrend', label: 'Xu hướng trước đó rõ ràng', max: 5 },
-      { id: 'clarity', label: 'Mẫu hình sạch, dễ nhận diện', max: 5 },
-      { id: 'tightness', label: 'Biên độ co hẹp / nền chặt', max: 5 },
-      { id: 'baseVolume', label: 'Volume trong nền tốt', max: 5 },
-      { id: 'location', label: 'Vị trí mẫu hình đẹp', max: 5 },
-      { id: 'relativeStrength', label: 'RS / Leader', max: 5 }
+const defaultPatterns = [
+  {
+    id:'vcp', name:'VCP', strategy:'Mark Minervini', image:'mau hinh.png',
+    description:'Mẫu hình co hẹp biên độ với volume cạn dần trước breakout.',
+    conditions:['Xu hướng trước đó tăng mạnh','Biên độ co hẹp dần','Volume cạn dần','RS mạnh hơn thị trường'],
+    triggers:['Breakout khỏi nền','Volume xác nhận','Thị trường ủng hộ'],
+    tqBias:{ pattern:26, market:16, entry:16, risk:18, discipline:8 }
+  },
+  {
+    id:'tight_flag', name:'Tight Flag', strategy:'CANSLIM', image:'Phan tich.png',
+    description:'Nền ngắn sau một nhịp tăng mạnh, cần volume xác nhận và vị trí tốt.',
+    conditions:['Tăng tốc trước đó rõ','Nền ngắn 1-3 tuần','Không thủng hỗ trợ chính'],
+    triggers:['Break nhẹ lên đỉnh nền','Volume cao hơn trung bình','Không vướng kháng cự gần'],
+    tqBias:{ pattern:24, market:15, entry:15, risk:17, discipline:8 }
+  },
+  {
+    id:'long_term', name:'Long-term Leader', strategy:'Position Trading', image:'Thi truong.png',
+    description:'Mã dẫn dắt dài hạn, mua ở nền lớn, ưu tiên giữ theo xu hướng chính.',
+    conditions:['Cổ phiếu leader','Ngành mạnh','EPS và doanh thu tăng trưởng'],
+    triggers:['Vượt nền lớn','Khối lượng ổn định','Thị trường không xấu'],
+    tqBias:{ pattern:22, market:18, entry:14, risk:18, discipline:9 }
+  }
+];
+
+const defaultWatchlist = [
+  {id:uid(), group:'Gần điểm mua', ticker:'MWG', sector:'Bán lẻ', setup:'Base-on-base', buyZone:'61.5 - 62.2', risk:'Thấp', status:'Gần điểm mua', patternId:'vcp'},
+  {id:uid(), group:'Theo dõi', ticker:'CTR', sector:'Hạ tầng', setup:'Tight Flag', buyZone:'96.0 - 97.5', risk:'Trung bình', status:'Theo dõi', patternId:'tight_flag'},
+  {id:uid(), group:'Dài hạn', ticker:'FPT', sector:'Công nghệ', setup:'Long-term Leader', buyZone:'124 - 128', risk:'Thấp', status:'Dài hạn', patternId:'long_term'}
+];
+
+const defaultJournal = [
+  {
+    id:uid(), date:'2026-03-03', ticker:'FPT', sector:'Công nghệ', strategy:'Mark Minervini', setup:'VCP',
+    entryPrice:128.5, stopLoss:123, exitPrice:137.8, quantity:500, pnlPct:7.24, pnl:4650000, r:1.69,
+    status:'Đã đóng', result:'win', emotion:'Tự tin', mistake:'Không', execution:'Đúng kế hoạch',
+    patternId:'vcp', marketPulse:'Tích cực', note:'Breakout đẹp, volume tăng, VN-Index ổn định, nhóm công nghệ dẫn dắt.',
+    checklist:['Xu hướng nền chặt','Volume bùng nổ','RS mạnh','Thị trường ủng hộ'], theoryImage:'mau hinh.png', actualImage:'nhat ky.png'
+  },
+  {
+    id:uid(), date:'2026-03-05', ticker:'HPG', sector:'Thép', strategy:'Price Action', setup:'Breakout nền giá',
+    entryPrice:31.2, stopLoss:29.8, exitPrice:30.1, quantity:2000, pnlPct:-3.53, pnl:-2200000, r:-1,
+    status:'Đã đóng', result:'loss', emotion:'Tham lam', mistake:'Gồng lỗ', execution:'Vi phạm kế hoạch',
+    patternId:'tight_flag', marketPulse:'Trung tính', note:'Mua hơi sớm, chưa có xác nhận thật sự từ thị trường chung.',
+    checklist:['Có nền giá','Chưa đủ volume','Thị trường chưa rõ xu hướng'], theoryImage:'Phan tich.png', actualImage:'nhat ky.png'
+  },
+  {
+    id:uid(), date:'2026-03-07', ticker:'DGC', sector:'Hóa chất', strategy:'CANSLIM', setup:'Tight Flag',
+    entryPrice:112, stopLoss:108.5, exitPrice:null, quantity:400, pnlPct:null, pnl:0, r:null,
+    status:'Đang mở', result:'open', emotion:'Sợ hãi', mistake:'Bán non (suýt)', execution:'Đang theo dõi',
+    patternId:'tight_flag', marketPulse:'Tích cực', note:'Đang giữ, quan sát phản ứng quanh MA10 và sức mạnh ngành.',
+    checklist:['Nền chặt','Cần theo dõi volume','Giữ stop rõ ràng'], theoryImage:'Phan tich.png', actualImage:'nhat ky.png'
+  },
+  {
+    id:uid(), date:'2026-03-11', ticker:'SSI', sector:'Chứng khoán', strategy:'Wyckoff', setup:'Cốc tay cầm',
+    entryPrice:39.6, stopLoss:37.9, exitPrice:42.4, quantity:1200, pnlPct:7.07, pnl:3360000, r:1.78,
+    status:'Đã đóng', result:'win', emotion:'Tự tin', mistake:'Không', execution:'Đúng kế hoạch',
+    patternId:'vcp', marketPulse:'Rất tích cực', note:'Setup chuẩn, dòng chứng khoán khỏe, volume bùng nổ.',
+    checklist:['Spring/markup rõ','Dòng tiền ngành mạnh','Volume xác nhận'], theoryImage:'mau hinh.png', actualImage:'nhat ky.png'
+  }
+];
+
+const defaultMarket = {
+  distDays:2, sentiment:'Tích cực', leaders:['Chứng khoán','Công nghệ','Bán lẻ'], riskMode:'Thị trường bình thường', marketTrend:'Uptrend',
+  sources:[
+    {name:'CafeF', type:'Tin tức / Dữ liệu', mood:'Vĩ mô - doanh nghiệp', url:'https://cafef.vn'},
+    {name:'Vietstock', type:'Tin tức / Phân tích', mood:'Báo cáo - ngành', url:'https://vietstock.vn'},
+    {name:'FireAnt', type:'Chart / Theo dõi thị trường', mood:'Bảng giá - dòng tiền', url:'https://fireant.vn'}
+  ],
+  notes:'Tín hiệu hành động: có thể giải ngân thăm dò với setup mạnh, vẫn giữ kỷ luật stop loss.'
+};
+
+const defaultMindset = { energy:7, calm:8, fomo:4, confidence:6, routine:[
+  '06:30–07:00: Xem lại watchlist và thị trường chung.',
+  '07:00–07:10: Bài thở 4-7-8 và reset tâm lý.',
+  '08:00–08:30: Kiểm tra setup đẹp nhất, chỉ chọn vài cơ hội chất lượng.',
+  'Trong phiên: Không vào lệnh nếu chưa qua checklist và sizing.',
+  'Cuối ngày: Ghi nhật ký, chấm Trade Quality, hậu kiểm lỗi.'
+]};
+
+const defaultReviews = { weekly:'', monthly:'' };
+
+const playbookCards = [
+  {title:'CANSLIM', desc:'Tập trung tăng trưởng lợi nhuận, doanh thu, leader ngành, breakout đúng thời điểm.'},
+  {title:'Mark Minervini', desc:'Ưu tiên VCP, nền chặt, volume xác nhận, risk nhỏ - reward lớn.'},
+  {title:'Wyckoff / Price Action', desc:'Đọc pha tích lũy, cung cầu, spring, SOS và hành vi giá.'}
+];
+
+const tradeQualityJSON = {
+  version:'2.0_auto_suggest',
+  grading:[{grade:'A+', min:90},{grade:'A', min:80},{grade:'B', min:70},{grade:'C', min:60},{grade:'D', min:0}],
+  sections:[
+    {key:'pattern', label:'Chất lượng mẫu hình', max:30, items:[
+      {id:'trend', label:'Xu hướng trước đó rõ', max:5},
+      {id:'clarity', label:'Mẫu hình sạch, dễ nhận diện', max:5},
+      {id:'tightness', label:'Biên độ co hẹp / nền chặt', max:5},
+      {id:'volume_base', label:'Volume trong nền giá', max:5},
+      {id:'position', label:'Vị trí mẫu hình', max:5},
+      {id:'rs', label:'Sức mạnh cổ phiếu / leader', max:5}
     ]},
-    { id: 'market', label: 'Bối cảnh thị trường', max: 20, items: [
-      { id: 'marketTrend', label: 'Thị trường chung thuận lợi', max: 8 },
-      { id: 'distribution', label: 'Số ngày phân phối', max: 4 },
-      { id: 'sectorLeader', label: 'Thuộc ngành dẫn dắt', max: 4 },
-      { id: 'breadth', label: 'Độ rộng / tâm lý thị trường', max: 4 }
+    {key:'market', label:'Bối cảnh thị trường', max:20, items:[
+      {id:'market_trend', label:'Thị trường chung thuận lợi', max:8},
+      {id:'dist_days', label:'Số ngày phân phối', max:4},
+      {id:'sector_lead', label:'Ngành dẫn dắt', max:4},
+      {id:'breadth', label:'Độ rộng / tâm lý thị trường', max:4}
     ]},
-    { id: 'entry', label: 'Điểm vào lệnh & timing', max: 20, items: [
-      { id: 'pivot', label: 'Mua sát pivot / buy point', max: 8 },
-      { id: 'breakoutVolume', label: 'Breakout có volume', max: 5 },
-      { id: 'timing', label: 'Timing vào lệnh hợp lý', max: 3 },
-      { id: 'overheadSupply', label: 'Không vướng cản gần', max: 4 }
+    {key:'entry', label:'Điểm vào lệnh & timing', max:20, items:[
+      {id:'pivot', label:'Điểm mua đúng pivot / buy point', max:8},
+      {id:'breakout_vol', label:'Breakout có xác nhận volume', max:5},
+      {id:'timing', label:'Timing trong phiên', max:3},
+      {id:'overhead', label:'Không vướng kháng cự gần', max:4}
     ]},
-    { id: 'risk', label: 'Quản trị rủi ro', max: 20, items: [
-      { id: 'stop', label: 'Có stop loss rõ', max: 6 },
-      { id: 'size', label: 'Position sizing đúng risk', max: 6 },
-      { id: 'rr', label: 'RR đủ tốt', max: 4 },
-      { id: 'margin', label: 'Margin đúng bối cảnh', max: 4 }
+    {key:'risk', label:'Quản trị rủi ro', max:20, items:[
+      {id:'stop', label:'Có stop loss rõ', max:6},
+      {id:'size', label:'Position sizing đúng risk', max:6},
+      {id:'rr', label:'Tỷ lệ reward/risk tốt', max:4},
+      {id:'margin', label:'Margin phù hợp bối cảnh', max:4}
     ]},
-    { id: 'discipline', label: 'Tâm lý & kỷ luật', max: 10, items: [
-      { id: 'plan', label: 'Vào lệnh đúng kế hoạch', max: 4 },
-      { id: 'fomo', label: 'Không có dấu hiệu FOMO', max: 2 },
-      { id: 'emotion', label: 'Cảm xúc ổn định', max: 2 },
-      { id: 'checklist', label: 'Có check checklist', max: 2 }
+    {key:'discipline', label:'Tâm lý & kỷ luật', max:10, items:[
+      {id:'plan', label:'Vào lệnh đúng kế hoạch', max:4},
+      {id:'fomo', label:'Không có dấu hiệu FOMO', max:2},
+      {id:'emotion', label:'Cảm xúc ổn định', max:2},
+      {id:'checklist', label:'Có check checklist', max:2}
     ]}
   ]
 };
 
-function uid() { return Math.random().toString(36).slice(2, 10); }
-function clone(v) { return JSON.parse(JSON.stringify(v)); }
-function fmtMoney(v) { return Number(v || 0).toLocaleString('vi-VN') + 'đ'; }
-function fmtPct(v) { return `${Number(v || 0).toFixed(1)}%`; }
-function parseLines(t) { return (t || '').split('\n').map(x => x.trim()).filter(Boolean); }
-
-function setLoginMessage(msg, type = 'error') {
-  const el = $('#loginMsg');
-  if (!el) return;
-  el.textContent = msg || '';
-  el.style.color = type === 'success' ? '#34d399' : (type === 'warn' ? '#fbbf24' : '#fca5a5');
-}
-
-function renderAuthDebug(extra = {}) {
-  const box = $('#authDebug');
-  if (!box) return;
-  const boot = window.firebaseBoot || {};
-  const payload = {
-    firebaseReady: !!boot.ready,
-    firebaseEnabled: !!boot.enabled,
-    hasAuth: !!boot.auth,
-    hasDb: !!boot.db,
-    hasStorage: !!boot.storage,
-    adminUid: boot.adminUid || null,
-    currentUid: session?.uid || null,
-    currentEmail: session?.email || null,
-    role: session?.role || null,
-    mode: session?.isDemo ? 'demo' : 'firebase',
-    bootError: boot.error ? (boot.error.message || String(boot.error)) : null,
-    ...extra
-  };
-  box.textContent = JSON.stringify(payload, null, 2);
-}
-
-const defaultData = {
-  account: { energy: 7, calm: 8, fomo: 4, confidence: 6, theme: 'dark' },
-  market: { distDays: 2, sentiment: 'Tích cực', leaders: 'Chứng khoán, Công nghệ, Bán lẻ', riskMode: 'Risk-on nhẹ', marketTrend: 'Uptrend' },
-  patterns: [
-    { id: 'vcp', userId: 'demo-user', name: 'VCP', strategy: 'Mark Minervini', description: 'Volatility contraction pattern với nền giá chặt và breakout có volume xác nhận.', image: 'mau hinh.png', conditions: ['Xu hướng trước đó tăng mạnh', 'Biên độ co hẹp dần', 'Volume cạn dần', 'RS mạnh hơn thị trường'], triggers: ['Breakout khỏi pivot', 'Volume bùng nổ', 'Thị trường ủng hộ'], tqBias: { pattern: 26, market: 15, entry: 16, risk: 17, discipline: 8 } },
-    { id: 'tight_flag', userId: 'demo-user', name: 'Tight Flag', strategy: 'CANSLIM', description: 'Mẫu hình cờ chặt sau pha tăng tốc, phù hợp khi dòng tiền leader mạnh.', image: 'Phan tich.png', conditions: ['Pha tăng trước đó rõ', 'Nền cờ chặt', 'Không mất MA ngắn hạn'], triggers: ['Break nền chặt', 'Volume xác nhận', 'Ngành dẫn dắt'], tqBias: { pattern: 24, market: 15, entry: 15, risk: 16, discipline: 8 } },
-    { id: 'long_term', userId: 'demo-user', name: 'Long-term Leader', strategy: 'Position Trading', description: 'Mã dài hạn tích lũy tốt, phù hợp khi thị trường thuận lợi.', image: 'Thi truong.png', conditions: ['Xu hướng dài hạn tăng', 'Cơ bản mạnh', 'Ngành dẫn dắt'], triggers: ['Pullback đẹp', 'MA hỗ trợ', 'Tín hiệu giữ vị thế dài hạn'], tqBias: { pattern: 22, market: 16, entry: 13, risk: 18, discipline: 9 } }
-  ],
-  watchlists: [
-    { id: uid(), userId: 'demo-user', ticker: 'MWG', status: 'Gần điểm mua', setup: 'Base-on-base', buyZone: '61.5 - 62.2', risk: 'Thấp', patternId: 'vcp' },
-    { id: uid(), userId: 'demo-user', ticker: 'CTR', status: 'Theo dõi', setup: 'Tight Flag', buyZone: '96.0 - 97.5', risk: 'Trung bình', patternId: 'tight_flag' },
-    { id: uid(), userId: 'demo-user', ticker: 'FPT', status: 'Dài hạn', setup: 'Long-term Leader', buyZone: '124 - 128', risk: 'Thấp', patternId: 'long_term' }
-  ],
-  journal: []
+const state = {
+  theme: load(LS_KEYS.theme, 'dark'),
+  watchlist: load(LS_KEYS.watchlist, defaultWatchlist),
+  journal: load(LS_KEYS.journal, defaultJournal).map(enrichTrade),
+  patterns: load(LS_KEYS.patterns, defaultPatterns),
+  market: load(LS_KEYS.market, defaultMarket),
+  mindset: load(LS_KEYS.mindset, defaultMindset),
+  reviews: load(LS_KEYS.reviews, defaultReviews),
+  selectedTradeId: null,
+  selectedPatternId: null,
+  breathTimer: null,
+  breathPhase: 0,
+  breathTick: 0
 };
-
-defaultData.journal = [
-  createTrade({ id: uid(), userId: 'demo-user', date: '2026-03-03', ticker: 'FPT', strategy: 'Mark Minervini', sector: 'Công nghệ', setup: 'VCP', status: 'Đã đóng', result: 'win', entryPrice: 128.5, stopLoss: 123, exitPrice: 137.8, quantity: 500, pnl: 4650000, emotion: 'Tự tin', mistake: 'Không', marketPulse: 'Tích cực', execution: 'Đúng kế hoạch', note: 'Breakout đẹp, volume tăng, nhóm công nghệ dẫn dắt.', patternId: 'vcp', image: 'nhat ky.png' }),
-  createTrade({ id: uid(), userId: 'demo-user', date: '2026-03-12', ticker: 'HPG', strategy: 'Price Action', sector: 'Thép', setup: 'Breakout nền giá', status: 'Đã đóng', result: 'loss', entryPrice: 31.2, stopLoss: 29.8, exitPrice: 30.1, quantity: 2000, pnl: -2200000, emotion: 'Tham lam', mistake: 'Gồng lỗ', marketPulse: 'Trung tính', execution: 'Vi phạm kế hoạch', note: 'Mua hơi sớm, chưa có xác nhận thật sự từ thị trường.', patternId: 'tight_flag', image: 'Phan tich.png' }),
-  createTrade({ id: uid(), userId: 'demo-user', date: '2026-03-15', ticker: 'DGC', strategy: 'CANSLIM', sector: 'Hóa chất', setup: 'Tight Flag', status: 'Đang mở', result: 'open', entryPrice: 112, stopLoss: 108.5, exitPrice: '', quantity: 400, pnl: 0, emotion: 'Sợ hãi', mistake: 'Bán non (suýt)', marketPulse: 'Tích cực', execution: 'Đang theo dõi', note: 'Đang giữ, quan sát MA10 và phản ứng thị trường.', patternId: 'tight_flag', image: 'Radar.png' }),
-  createTrade({ id: uid(), userId: 'demo-user', date: '2026-03-11', ticker: 'SSI', strategy: 'Wyckoff', sector: 'Chứng khoán', setup: 'Cốc tay cầm', status: 'Đã đóng', result: 'win', entryPrice: 39.6, stopLoss: 37.9, exitPrice: 42.4, quantity: 1200, pnl: 3360000, emotion: 'Tự tin', mistake: 'Không', marketPulse: 'Rất tích cực', execution: 'Đúng kế hoạch', note: 'Setup chuẩn, dòng chứng khoán khỏe, volume bùng nổ.', patternId: 'vcp', image: 'Phan tich.png' })
-];
-
-let state = loadState();
-let session = { isDemo: true, loggedIn: false, uid: 'demo-user', email: 'demo@local', role: 'demo' };
-let selectedTradeId = state.journal[0]?.id || null;
-let selectedPatternId = state.patterns[0]?.id || null;
-let editingWatchId = null, editingTradeId = null, editingPatternId = null;
-let breathInterval = null, breathRunning = false, breathTick = 0;
-
-function createTrade(base) {
-  const tq = buildAutoSuggestedTradeQuality(base.patternId || 'vcp', base.strategy || '', defaultData.market);
-  const summary = summarizeTradeQuality(tq);
-  return {
-    score: summary.total,
-    qualityGrade: summary.grade,
-    tradeQuality: tq,
-    ...base
-  };
-}
-
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-    return {
-      account: { ...defaultData.account, ...(saved.account || {}) },
-      market: { ...defaultData.market, ...(saved.market || {}) },
-      patterns: saved.patterns?.length ? saved.patterns : clone(defaultData.patterns),
-      watchlists: saved.watchlists?.length ? saved.watchlists : clone(defaultData.watchlists),
-      journal: saved.journal?.length ? saved.journal : clone(defaultData.journal),
-    };
-  } catch {
-    return clone(defaultData);
-  }
-}
-function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
-
-function buildAutoSuggestedTradeQuality(patternId, strategy, market) {
-  const pattern = state?.patterns?.find(p => p.id === patternId) || defaultData.patterns[0];
-  const bias = pattern?.tqBias || { pattern: 22, market: 14, entry: 14, risk: 16, discipline: 8 };
-  const distAdjust = market.distDays <= 2 ? 0 : market.distDays === 3 ? -2 : market.distDays === 4 ? -4 : -6;
-  return {
-    version: tradeQualitySchema.version,
-    groups: tradeQualitySchema.groups.map(group => {
-      let target = bias[group.id] ?? Math.round(group.max * 0.75);
-      if (group.id === 'market') target = Math.max(0, Math.min(group.max, target + distAdjust));
-      let left = target;
-      const items = group.items.map((item, idx) => {
-        const remain = group.items.length - idx;
-        const score = Math.max(0, Math.min(item.max, Math.round(left / remain)));
-        left -= score;
-        return { ...item, score };
-      });
-      return { id: group.id, label: group.label, max: group.max, items };
-    })
-  };
-}
-
-function summarizeTradeQuality(tq) {
-  const groups = tq.groups.map(group => ({
-    id: group.id,
-    label: group.label,
-    max: group.max,
-    score: group.items.reduce((a, b) => a + Number(b.score || 0), 0)
-  }));
-  const total = groups.reduce((a, b) => a + b.score, 0);
-  return { groups, total, grade: gradeFromScore(total), note: autoNote(groups, total) };
-}
-function gradeFromScore(total) { if (total >= 90) return 'A+'; if (total >= 80) return 'A'; if (total >= 70) return 'B'; if (total >= 60) return 'C'; return 'D'; }
-function autoNote(groups, total) {
-  const strongest = [...groups].sort((a,b)=>b.score/b.max-a.score/a.max)[0];
-  const weakest = [...groups].sort((a,b)=>a.score/a.max-b.score/b.max)[0];
-  const head = total >= 80 ? 'Setup tốt, có thể ưu tiên cao nếu đúng risk.' : total >= 70 ? 'Setup dùng được, nên vào lệnh có chọn lọc.' : total >= 60 ? 'Chất lượng trung bình, nên giảm size.' : 'Setup yếu, không nên vào lệnh.';
-  return `${head} Điểm mạnh nằm ở ${strongest.label.toLowerCase()}, điểm cần cải thiện là ${weakest.label.toLowerCase()}.`;
-}
-
-function getSelectedTrade() { return state.journal.find(x => x.id === selectedTradeId) || state.journal[0] || null; }
-function getSelectedPattern() { return state.patterns.find(x => x.id === selectedPatternId) || state.patterns[0] || null; }
-function riskModeMessage(days) {
-  if (days <= 2) return 'Thị trường bình thường';
-  if (days === 3) return 'Giảm Margin';
-  if (days === 4) return 'Tỷ cổ phiếu 50%';
-  return 'Giảm tỷ trọng cổ phiếu tối đa - Canh mã dài hạn';
-}
-function tradeReturnPct(t) {
-  if (!t.exitPrice || !t.entryPrice) return 0;
-  return ((Number(t.exitPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100;
-}
-function tradeR(t) {
-  const riskPerShare = Number(t.entryPrice) - Number(t.stopLoss);
-  if (!riskPerShare || !t.exitPrice) return 0;
-  return (Number(t.exitPrice) - Number(t.entryPrice)) / riskPerShare;
-}
-function applyAutoSuggestToTrade(t) {
-  t.tradeQuality = buildAutoSuggestedTradeQuality(t.patternId, t.strategy, state.market);
-  const sum = summarizeTradeQuality(t.tradeQuality);
-  t.score = sum.total;
-  t.qualityGrade = sum.grade;
-}
-
-window.switchTab = function(tab) {
-  $$('.tab-section').forEach(x => x.classList.add('hidden'));
-  $('#tab-' + tab).classList.remove('hidden');
-  $$('.nav-btn').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
-};
-
-function bindCommon() {
-  $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-  $('#themeBtn').addEventListener('click', toggleTheme);
-  $('#demoBtn').addEventListener('click', () => { $('#loginModal').classList.add('hidden'); session = { isDemo: true, loggedIn: false, uid: 'demo-user', email: 'demo@local', role: 'demo' }; setLoginMessage('Đang vào demo mode...', 'success'); renderAuthDebug({ action: 'demo_mode' }); renderAll(); });
-  $('#loginBtn').addEventListener('click', handleLogin);
-  $$('.modal [data-close]').forEach(btn => btn.addEventListener('click', () => btn.closest('.modal').classList.add('hidden')));
-  $('#openWatchModalBtn').addEventListener('click', () => openWatchModal());
-  $('#saveWatchBtn').addEventListener('click', saveWatchlistItem);
-  $('#openTradeModalBtn').addEventListener('click', () => openTradeModal());
-  $('#saveTradeBtn').addEventListener('click', saveTrade);
-  $('#openPatternModalBtn').addEventListener('click', () => openPatternModal());
-  $('#savePatternBtn').addEventListener('click', savePattern);
-  $('#editPatternBtn').addEventListener('click', () => { const p = getSelectedPattern(); if (p) openPatternModal(p.id); });
-  $('#deletePatternBtn').addEventListener('click', deleteSelectedPattern);
-  $('#applyPatternToJournal').addEventListener('click', () => { const t = getSelectedTrade(); if (!t) return; t.patternId = selectedPatternId; applyAutoSuggestToTrade(t); saveState(); renderJournal(); switchTab('journal'); });
-  $('#autoSuggestBtn').addEventListener('click', () => { const t = getSelectedTrade(); if (!t) return; applyAutoSuggestToTrade(t); saveState(); renderJournal(); });
-  $('#copyJsonBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#tradeQualityJson').textContent); } catch {} });
-  ['posAccount','posRiskPercent','posEntry','posStop'].forEach(id => $('#'+id).addEventListener('input', renderPositionSizing));
-  $('#saveMarketBtn').addEventListener('click', saveMarket);
-  $('#saveCheckinBtn').addEventListener('click', saveCheckin);
-  $('#saveReviewBtn').addEventListener('click', saveReview);
-  ['energyInput','calmInput','fomoInput','confidenceInput'].forEach(id => $('#'+id).addEventListener('input', renderCheckinValues));
-  ['filterFromDate','filterToDate','filterStatus','filterResult'].forEach(id => $('#'+id).addEventListener('input', renderJournal));
-  $('#toggleBreathBtn').addEventListener('click', toggleBreathing);
-  $('#imageViewer').addEventListener('click', ()=> $('#imageViewer').classList.add('hidden'));
-  ['patternDetailImg','theoryImg','tradeImg'].forEach(id => $('#'+id).addEventListener('click', ()=> openImageViewer($('#'+id).src)));
-  $('#patternImageFile').addEventListener('change', patternFilePreview);
-  $('#logoutBtn').addEventListener('click', async () => { if (window.firebaseBoot.auth) await window.firebaseBoot.auth.signOut().catch(()=>{}); location.reload(); });
-  $('#resetPassBtn').addEventListener('click', resetPassword);
-  $('#changeEmailBtn').addEventListener('click', changeEmail);
-}
-
-async function handleLogin() {
-  const boot = window.firebaseBoot || {};
-  if (!boot.ready || !boot.auth) { setLoginMessage('Firebase chưa sẵn sàng. Hãy dùng chế độ demo.', 'warn'); renderAuthDebug({ action: 'login_blocked' }); return; }
-  const email = $('#loginEmail').value.trim();
-  const pass = $('#loginPass').value.trim();
-  if (!email || !pass) { setLoginMessage('Hãy nhập đầy đủ email và mật khẩu.', 'warn'); renderAuthDebug({ action: 'missing_credentials' }); return; }
-  setLoginMessage('Đang đăng nhập...', 'success');
-  renderAuthDebug({ action: 'login_attempt', email });
-  try {
-    await boot.auth.signInWithEmailAndPassword(email, pass);
-    setLoginMessage('Đăng nhập thành công, đang đồng bộ hồ sơ...', 'success');
-  } catch (e) {
-    console.error('Login error:', e);
-    setLoginMessage(e.message || 'Không đăng nhập được.');
-    renderAuthDebug({ action: 'login_error', code: e.code || null, message: e.message || String(e), email });
-  }
-}
-
-async function ensureUserProfile(user) {
-  if (!window.firebaseBoot.db) return;
-  const ref = window.firebaseBoot.db.collection('users').doc(user.uid);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    await ref.set({ name: user.email?.split('@')[0] || 'User', email: user.email || '', role: user.uid === window.firebaseBoot.adminUid ? 'admin' : 'user', theme: 'dark', createdAt: Date.now() }, { merge: true });
-  }
-  const fresh = await ref.get();
-  const profile = fresh.data() || {};
-  session = { isDemo: false, loggedIn: true, uid: user.uid, email: user.email || '', role: profile.role || 'user' };
-  renderAuthDebug({ action: 'profile_loaded', profileExists: fresh.exists, profileRole: profile.role || 'user' });
-  await hydrateFirestoreData();
-  $('#loginModal').classList.add('hidden');
-  renderAll();
-}
-
-async function hydrateFirestoreData() {
-  if (!window.firebaseBoot.db) return;
-  const db = window.firebaseBoot.db;
-  try {
-    const marketSnap = await db.collection('settings').doc('market').get();
-    if (marketSnap.exists) state.market = { ...state.market, ...marketSnap.data() };
-  } catch {}
-  try {
-    const watchSnap = await db.collection('watchlist').where('userId', '==', session.uid).get();
-    if (!watchSnap.empty) state.watchlists = watchSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {}
-  try {
-    const patSnap = await db.collection('patterns').where('userId', '==', session.uid).get();
-    if (!patSnap.empty) state.patterns = patSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {}
-  try {
-    const jSnap = await db.collection('journal').where('userId', '==', session.uid).get();
-    if (!jSnap.empty) state.journal = jSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {}
-  saveState();
-}
-
-async function syncCollection(name, record, id = null) {
-  if (!window.firebaseBoot.db || session.isDemo) return;
-  const col = window.firebaseBoot.db.collection(name);
-  if (id) await col.doc(id).set(record, { merge: true });
-  else {
-    const ref = await col.add(record);
-    return ref.id;
-  }
-}
-async function deleteRemote(name, id) {
-  if (!window.firebaseBoot.db || session.isDemo || !id) return;
-  await window.firebaseBoot.db.collection(name).doc(id).delete().catch(()=>{});
-}
-
-function renderAll() {
-  document.documentElement.classList.toggle('dark', state.account.theme !== 'light');
-  renderAccount();
-  renderDashboard();
-  renderScan();
-  renderJournal();
-  renderPatterns();
-  renderPositionSizing();
-  renderMarket();
-  renderMindset();
-  renderReview();
-  renderSyncStatus();
-  lucide.createIcons();
-}
-
-function renderAccount() {
-  $('#accountBox').innerHTML = `
-    <div><strong>Email:</strong> ${session.email}</div>
-    <div><strong>UID:</strong> ${session.uid}</div>
-    <div><strong>Role:</strong> ${session.role}</div>
-    <div><strong>Mode:</strong> ${session.isDemo ? 'Demo' : 'Firebase'}</div>`;
-  $('#syncMode').textContent = session.isDemo ? 'Demo' : 'Firebase';
-}
-function renderSyncStatus() {
-  $('#syncJournalCount').textContent = state.journal.length;
-  $('#syncWatchlistCount').textContent = state.watchlists.length;
-  $('#syncPatternsCount').textContent = state.patterns.length;
-}
-function renderDashboard() {
-  $('#dashDistDays').textContent = state.market.distDays;
-  $('#dashRiskMode').textContent = riskModeMessage(Number(state.market.distDays));
-  $('#dashLeaders').textContent = state.market.leaders;
-  $('#kpiMarketPulse').textContent = state.market.riskMode;
-  const watchCount = state.watchlists.filter(x => x.status === 'Gần điểm mua').length;
-  $('#kpiWatchCount').textContent = String(watchCount).padStart(2,'0');
-  const closed = state.journal.filter(t => t.result === 'win' || t.result === 'loss');
-  const wins = closed.filter(t => t.result === 'win').length;
-  $('#kpiWinRate').textContent = closed.length ? `${((wins / closed.length) * 100).toFixed(1)}%` : '0%';
-  const avgQuality = state.journal.length ? state.journal.reduce((a,b)=>a+Number(b.score||0),0) / state.journal.length : 0;
-  $('#kpiTradeQuality').textContent = gradeFromScore(avgQuality);
-  $('#kpiWarnings').textContent = String(state.journal.filter(x => x.execution === 'Vi phạm kế hoạch').length).padStart(2,'0');
-  renderWatchMini('#dashWatchNear', 'Gần điểm mua');
-  renderWatchMini('#dashWatchNormal', 'Theo dõi');
-  renderWatchMini('#dashWatchLong', 'Dài hạn');
-  const checklistRate = Math.round((state.journal.reduce((a,b)=>a+Number(b.score||0),0)/(Math.max(1,state.journal.length)*100))*100);
-  $('#dashChecklistRate').textContent = `${checklistRate}%`;
-  $('#dashTopMistake').textContent = topMistake();
-  const t = getSelectedTrade();
-  const summary = t ? summarizeTradeQuality(t.tradeQuality) : { groups: [] };
-  $('#dashQualityBreakdown').innerHTML = summary.groups.map(g => `<div class="quality-card"><div class="muted">${g.label}</div><div class="metric">${g.score}/${g.max}</div><div class="progress mt-8"><div class="progress-bar" style="width:${(g.score/g.max)*100}%"></div></div></div>`).join('');
-}
-function renderWatchMini(target, status) {
-  const list = state.watchlists.filter(x => x.status === status);
-  $(target).innerHTML = list.map(item => `<div class="watch-card"><div class="flex items-center justify-between"><div><div class="card-title small">${item.ticker}</div><div class="muted mt-8">${item.setup}</div></div><span class="pill">${item.buyZone}</span></div><div class="watch-actions"><button class="btn btn-primary" onclick="openTradeFromWatch('${item.id}')">Tạo lệnh</button><button class="btn btn-secondary" onclick="openPatternFromWatch('${item.patternId}')">Mở checklist</button></div></div>`).join('') || '<div class="muted">Chưa có dữ liệu</div>';
-}
-function renderScan() {
-  ['Gần điểm mua','Theo dõi','Dài hạn'].forEach((status, idx) => {
-    const target = ['#scanNearWrap','#scanWatchWrap','#scanLongWrap'][idx];
-    const list = state.watchlists.filter(x => x.status === status);
-    $(target).innerHTML = list.map(item => {
-      const pattern = state.patterns.find(p => p.id === item.patternId);
-      return `<div class="watch-card"><div class="flex items-start justify-between"><div><div class="card-title small">${item.ticker}</div><div class="muted mt-8">${item.setup}</div></div><span class="pill">${item.risk}</span></div><div class="grid-2 mt-12"><div class="mini-box"><div class="muted">Buy zone</div><div class="metric">${item.buyZone}</div></div><div class="mini-box"><div class="muted">Pattern</div><div class="metric">${pattern?.name || '—'}</div></div></div><div class="watch-actions"><button class="btn btn-primary" onclick="openTradeFromWatch('${item.id}')">Tạo lệnh</button><button class="btn btn-secondary" onclick="editWatch('${item.id}')">Sửa</button><button class="btn btn-danger" onclick="deleteWatch('${item.id}')">Xóa</button><button class="btn btn-secondary" onclick="openPatternFromWatch('${item.patternId}')">Mở checklist</button></div></div>`;
-    }).join('') || '<div class="muted">Chưa có mã nào.</div>';
-  });
-  fillPatternSelects();
-}
-window.openTradeFromWatch = function(id){ const item = state.watchlists.find(x => x.id === id); openTradeModal(null, item); };
-window.editWatch = function(id){ openWatchModal(id); };
-window.deleteWatch = async function(id){ state.watchlists = state.watchlists.filter(x => x.id !== id); saveState(); await deleteRemote('watchlist', id); renderAll(); };
-window.openPatternFromWatch = function(patternId){ if (patternId) selectedPatternId = patternId; switchTab('patterns'); renderPatterns(); };
-
-function renderJournal() {
-  const list = filteredJournal();
-  $('#journalTableBody').innerHTML = list.map(t => {
-    const ret = tradeReturnPct(t), r = tradeR(t);
-    const qualityClass = t.qualityGrade.startsWith('A') ? 'pill mint' : t.qualityGrade === 'B' ? 'pill warn' : 'pill';
-    return `<tr onclick="selectTrade('${t.id}')"><td>${t.ticker}</td><td>${t.date}</td><td>${t.strategy}</td><td>${t.setup}</td><td>${t.sector || '—'}</td><td>${t.entryPrice}</td><td>${t.stopLoss}</td><td style="color:${ret>=0?'#10b981':'#ef4444'}">${ret?ret.toFixed(2):'—'}%</td><td style="color:${r>=0?'#10b981':'#ef4444'}">${t.exitPrice ? r.toFixed(2)+'R' : '—'}</td><td><span class="${qualityClass}">${t.qualityGrade} Setup</span></td><td><span class="pill ${t.execution==='Vi phạm kế hoạch'?'warn':'mint'}">${t.execution}</span></td><td><span class="pill ${t.result==='loss'?'warn':'mint'}">${t.result==='win'?'Lãi':t.result==='loss'?'Lỗ':'Đang mở'}</span></td><td>${t.mistake || 'Không'}</td><td><span class="pill">chart.png</span></td></tr>`;
-  }).join('');
-  if (list.length && !list.find(x => x.id === selectedTradeId)) selectedTradeId = list[0].id;
-  const t = getSelectedTrade(); if (!t) return;
-  $('#tradeDetailTitle').textContent = `Chi tiết lệnh: ${t.ticker}`;
-  $('#tradeDetailSub').textContent = `${t.strategy} · ${t.setup} · ${t.sector || '—'}`;
-  $('#tradeMarketChip').textContent = `Market ${t.marketPulse}`;
-  $('#tradeGradeChip').textContent = `${t.qualityGrade} Setup`;
-  $('#tradeStats').innerHTML = [['Entry',t.entryPrice],['Stop',t.stopLoss],['Exit',t.exitPrice||'—'],['Quantity',t.quantity]].map(([l,v]) => `<div class="mini-box"><div class="muted">${l}</div><div class="metric">${v}</div></div>`).join('');
-  const pattern = state.patterns.find(p => p.id === t.patternId) || getSelectedPattern();
-  $('#theoryImg').src = pattern?.image || 'mau hinh.png';
-  $('#tradeImg').src = t.image || 'nhat ky.png';
-  $('#tradeChecklist').innerHTML = (pattern?.conditions || []).map((c, i) => `<div class="check-item"><span>${c}</span><span class="pill ${i<(pattern.conditions.length-1)?'mint':''}">${i < pattern.conditions.length -1 ? 'Đạt' : 'Theo dõi'}</span></div>`).join('');
-  $('#tradeNoteWrap').innerHTML = `<div class="muted">${t.note || ''}</div><div class="tags mt-12"><span class="pill">Cảm xúc: ${t.emotion}</span><span class="pill">Sai lầm: ${t.mistake || 'Không'}</span><span class="pill warn">Số ngày phân phối: ${state.market.distDays}</span></div>`;
-  const summary = summarizeTradeQuality(t.tradeQuality);
-  document.documentElement.style.setProperty('--score', summary.total);
-  $('#tradeQualityTotal').textContent = summary.total;
-  $('#tradeQualityGrade').textContent = summary.grade;
-  $('#tradeQualityNote').textContent = summary.note;
-  $('#tradeQualityGroups').innerHTML = summary.groups.map(g => `<div class="quality-card"><div class="tab-header-row"><div class="card-title small">${g.label}</div><div class="metric">${g.score}/${g.max}</div></div><div class="progress mt-8"><div class="progress-bar" style="width:${(g.score/g.max)*100}%"></div></div></div>`).join('');
-  $('#tradeQualityJson').textContent = JSON.stringify(t.tradeQuality, null, 2);
-  renderPositionSizingFromTrade(t);
-  renderWarnings();
-}
-window.selectTrade = function(id){ selectedTradeId = id; renderJournal(); };
-function filteredJournal() {
-  return state.journal.filter(t => {
-    const from = $('#filterFromDate').value, to = $('#filterToDate').value, status = $('#filterStatus').value, result = $('#filterResult').value;
-    if (from && t.date < from) return false;
-    if (to && t.date > to) return false;
-    if (status !== 'all' && t.status !== status) return false;
-    if (result !== 'all' && t.result !== result) return false;
-    return true;
-  });
-}
-
-function renderPatterns() {
-  fillPatternSelects();
-  $('#patternList').innerHTML = state.patterns.map(p => `<button class="watch-card ${p.id===selectedPatternId?'active-pattern':''}" onclick="selectPattern('${p.id}')"><div class="card-title small">${p.name}</div><div class="muted mt-8">${p.strategy}</div><div class="muted mt-8">${p.description}</div></button>`).join('');
-  const p = getSelectedPattern(); if (!p) return;
-  $('#patternTitle').textContent = `${p.name} · ${p.strategy}`;
-  $('#patternDesc').textContent = p.description;
-  $('#patternDetailImg').src = p.image || 'mau hinh.png';
-  $('#patternConditions').innerHTML = p.conditions.map(x => `<div class="check-item"><span>${x}</span><span class="pill mint">Điều kiện</span></div>`).join('');
-  $('#patternTriggers').innerHTML = p.triggers.map(x => `<div class="check-item"><span>${x}</span><span class="pill warn">Kích hoạt</span></div>`).join('');
-  $('#patternTQJson').textContent = JSON.stringify(buildAutoSuggestedTradeQuality(p.id, p.strategy, state.market), null, 2);
-}
-window.selectPattern = function(id){ selectedPatternId = id; renderPatterns(); };
-
-function fillPatternSelects() {
-  const html = state.patterns.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-  $('#watchPattern').innerHTML = html;
-  $('#tradePattern').innerHTML = html;
-}
-
-function renderPositionSizing() {
-  const acc = Number($('#posAccount').value || 0), riskPct = Number($('#posRiskPercent').value || 0), entry = Number($('#posEntry').value || 0), stop = Number($('#posStop').value || 0);
-  const riskMoney = acc * riskPct / 100;
-  const riskPerShare = Math.abs(entry - stop);
-  const shares = riskPerShare > 0 ? Math.floor(riskMoney / riskPerShare) : 0;
-  const value = shares * entry;
-  const capitalPct = acc ? (value / acc) * 100 : 0;
-  const resultHtml = `<div class="mini-box"><div class="muted">Rủi ro tối đa</div><div class="metric">${fmtMoney(riskMoney)}</div></div><div class="mini-box"><div class="muted">SL tối đa</div><div class="metric">${shares} cp</div></div><div class="mini-box"><div class="muted">Giá trị vị thế</div><div class="metric">${fmtMoney(value)}</div></div><div class="mini-box"><div class="muted">% vốn sử dụng</div><div class="metric">${capitalPct.toFixed(1)}%</div></div>`;
-  $('#positionResult').innerHTML = resultHtml; $('#positionResultStandalone').innerHTML = resultHtml;
-  $('#psAccountShow').textContent = fmtMoney(acc); $('#psRiskShow').textContent = fmtPct(riskPct); $('#psEntryShow').textContent = entry; $('#psStopShow').textContent = stop;
-  $('#positionAlert').textContent = riskPerShare > 0 && capitalPct > 30 ? 'Cảnh báo: stop loss rộng hơn bình thường. Giảm khối lượng để không vượt risk account.' : 'Risk hợp lý. Có thể vào lệnh nếu setup đạt chuẩn.';
-}
-function renderPositionSizingFromTrade(t) {
-  $('#posEntry').value = t.entryPrice || 0; $('#posStop').value = t.stopLoss || 0; renderPositionSizing();
-}
-
-function renderWarnings() {
-  const warns = state.journal.filter(x => x.execution === 'Vi phạm kế hoạch' || x.mistake === 'Gồng lỗ' || x.result === 'open').slice(0, 2);
-  $('#warningBox').innerHTML = warns.map(w => `<div class="warning-item ${w.result==='loss' || w.mistake==='Gồng lỗ' ? 'red' : 'yellow'}">${w.ticker} · ${w.status} · ${w.mistake || w.execution}. ${w.result==='loss'?'Thiết lập rule: chạm stop phải thoát 100%.':'Gợi ý kích hoạt bài thở 2 phút trước khi quyết định.'}</div>`).join('');
-}
-
-function renderMarket() {
-  $('#marketDistDisplay').textContent = state.market.distDays;
-  $('#marketSentimentDisplay').textContent = state.market.sentiment;
-  $('#marketLeadersTags').innerHTML = state.market.leaders.split(',').map(x => `<span class="pill">${x.trim()}</span>`).join('');
-  $('#marketActionBox').textContent = riskModeMessage(Number(state.market.distDays));
-  $('#marketDistDays').value = state.market.distDays;
-  $('#marketSentiment').value = state.market.sentiment;
-  $('#marketLeaders').value = state.market.leaders;
-  $('#marketTrend').value = state.market.marketTrend;
-}
-async function saveMarket() {
-  state.market.distDays = Number($('#marketDistDays').value || 0);
-  state.market.sentiment = $('#marketSentiment').value.trim();
-  state.market.leaders = $('#marketLeaders').value.trim();
-  state.market.marketTrend = $('#marketTrend').value.trim();
-  state.market.riskMode = riskModeMessage(state.market.distDays);
-  saveState(); renderDashboard(); renderMarket();
-  if (!session.isDemo) await syncCollection('settings', { ...state.market, updatedBy: session.email, updatedAt: Date.now() }, 'market');
-}
-
-function renderMindset() {
-  $('#energyInput').value = state.account.energy; $('#calmInput').value = state.account.calm; $('#fomoInput').value = state.account.fomo; $('#confidenceInput').value = state.account.confidence; renderCheckinValues();
-}
-function renderCheckinValues() {
-  $('#energyVal').textContent = $('#energyInput').value; $('#calmVal').textContent = $('#calmInput').value; $('#fomoVal').textContent = $('#fomoInput').value; $('#confidenceVal').textContent = $('#confidenceInput').value;
-}
-function saveCheckin() {
-  state.account.energy = Number($('#energyInput').value); state.account.calm = Number($('#calmInput').value); state.account.fomo = Number($('#fomoInput').value); state.account.confidence = Number($('#confidenceInput').value); saveState(); renderMindset();
-}
-
-function renderReview() {
-  const wins = state.journal.filter(x => x.result === 'win');
-  const losses = state.journal.filter(x => x.result === 'loss');
-  const net = state.journal.reduce((a,b) => a + Number(b.pnl || 0), 0);
-  const byDay = {};
-  state.journal.forEach(t => { const d = new Date(t.date).getDay(); byDay[d] = (byDay[d] || 0) + Number(t.pnl || 0); });
-  const bestDayIdx = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? 2;
-  const dayName = ['CN','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][bestDayIdx];
-  $('#reviewMetrics').innerHTML = `<div class="mini-box"><div class="muted">Lệnh thắng / thua</div><div class="metric">${wins.length} / ${losses.length}</div></div><div class="mini-box"><div class="muted">Lợi nhuận ròng</div><div class="metric">${fmtMoney(net)}</div></div><div class="mini-box"><div class="muted">Ngày giao dịch hiệu quả</div><div class="metric">${dayName}</div></div>`;
-  const worst = [...losses].sort((a,b)=>a.pnl - b.pnl).slice(0,2);
-  $('#postMortemBox').innerHTML = worst.length ? worst.map(t => `<div class="warning-item red">${t.ticker} · ${fmtMoney(t.pnl)} · ${t.mistake || 'Cần hậu kiểm'} — hãy viết Post-mortem để cải thiện quy trình.</div>`).join('') : '<div class="muted">Chưa có lệnh lỗ để hậu kiểm.</div>';
-  $('#reviewNotes').value = localStorage.getItem(REVIEW_KEY) || '';
-}
-function saveReview() { localStorage.setItem(REVIEW_KEY, $('#reviewNotes').value); }
-
-function topMistake() {
-  const counts = {};
-  state.journal.forEach(t => { const m = t.mistake || 'Không'; counts[m] = (counts[m] || 0) + 1; });
-  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Không';
-}
-
-function toggleTheme() {
-  state.account.theme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-  document.documentElement.classList.toggle('dark');
-  saveState();
-}
-function openImageViewer(src) { $('#imageViewerImg').src = src; $('#imageViewer').classList.remove('hidden'); }
-
-function openWatchModal(id=null) {
-  editingWatchId = id;
-  const item = id ? state.watchlists.find(x => x.id === id) : null;
-  $('#watchTicker').value = item?.ticker || '';
-  $('#watchStatus').value = item?.status || 'Gần điểm mua';
-  $('#watchSetup').value = item?.setup || '';
-  $('#watchBuyZone').value = item?.buyZone || '';
-  $('#watchRisk').value = item?.risk || '';
-  fillPatternSelects();
-  $('#watchPattern').value = item?.patternId || state.patterns[0]?.id || '';
-  $('#watchModal').classList.remove('hidden');
-}
-async function saveWatchlistItem() {
-  const rec = {
-    userId: session.uid,
-    ticker: $('#watchTicker').value.trim(),
-    status: $('#watchStatus').value,
-    setup: $('#watchSetup').value.trim(),
-    buyZone: $('#watchBuyZone').value.trim(),
-    risk: $('#watchRisk').value.trim(),
-    patternId: $('#watchPattern').value,
-    updatedAt: Date.now()
-  };
-  if (editingWatchId) {
-    const idx = state.watchlists.findIndex(x => x.id === editingWatchId);
-    state.watchlists[idx] = { ...state.watchlists[idx], ...rec };
-    await syncCollection('watchlist', state.watchlists[idx], editingWatchId);
-  } else {
-    const localId = uid();
-    const doc = { id: localId, ...rec };
-    state.watchlists.unshift(doc);
-    const remoteId = await syncCollection('watchlist', doc);
-    if (remoteId) doc.id = remoteId;
-  }
-  saveState(); $('#watchModal').classList.add('hidden'); renderAll();
-}
-
-function openTradeModal(id=null, fromWatch=null) {
-  editingTradeId = id;
-  const t = id ? state.journal.find(x => x.id === id) : null;
-  fillPatternSelects();
-  $('#tradeDate').value = t?.date || new Date().toISOString().slice(0,10);
-  $('#tradeTicker').value = t?.ticker || fromWatch?.ticker || '';
-  $('#tradeStrategy').value = t?.strategy || '';
-  $('#tradeSetup').value = t?.setup || fromWatch?.setup || '';
-  $('#tradeStatus').value = t?.status || 'Đã đóng';
-  $('#tradeResult').value = t?.result || 'win';
-  $('#tradeEntry').value = t?.entryPrice || '';
-  $('#tradeStop').value = t?.stopLoss || '';
-  $('#tradeExit').value = t?.exitPrice || '';
-  $('#tradeQty').value = t?.quantity || '';
-  $('#tradePnl').value = t?.pnl || '';
-  $('#tradeEmotion').value = t?.emotion || '';
-  $('#tradePattern').value = t?.patternId || fromWatch?.patternId || state.patterns[0]?.id || '';
-  $('#tradeImage').value = t?.image || '';
-  $('#tradeNote').value = t?.note || '';
-  $('#tradeModal').classList.remove('hidden');
-}
-async function saveTrade() {
-  const rec = {
-    userId: session.uid,
-    date: $('#tradeDate').value,
-    ticker: $('#tradeTicker').value.trim(),
-    strategy: $('#tradeStrategy').value.trim(),
-    sector: guessSector($('#tradeTicker').value.trim()),
-    setup: $('#tradeSetup').value.trim(),
-    status: $('#tradeStatus').value,
-    result: $('#tradeResult').value,
-    entryPrice: Number($('#tradeEntry').value || 0),
-    stopLoss: Number($('#tradeStop').value || 0),
-    exitPrice: $('#tradeExit').value === '' ? '' : Number($('#tradeExit').value || 0),
-    quantity: Number($('#tradeQty').value || 0),
-    pnl: Number($('#tradePnl').value || 0),
-    emotion: $('#tradeEmotion').value.trim(),
-    mistake: Number($('#tradePnl').value || 0) < 0 ? 'Gồng lỗ' : 'Không',
-    marketPulse: state.market.sentiment,
-    execution: Number($('#tradePnl').value || 0) < 0 ? 'Vi phạm kế hoạch' : 'Đúng kế hoạch',
-    note: $('#tradeNote').value.trim(),
-    patternId: $('#tradePattern').value,
-    image: $('#tradeImage').value.trim() || 'nhat ky.png',
-    updatedAt: Date.now()
-  };
-  rec.tradeQuality = buildAutoSuggestedTradeQuality(rec.patternId, rec.strategy, state.market);
-  const sum = summarizeTradeQuality(rec.tradeQuality);
-  rec.score = sum.total; rec.qualityGrade = sum.grade;
-  if (editingTradeId) {
-    const idx = state.journal.findIndex(x => x.id === editingTradeId);
-    state.journal[idx] = { ...state.journal[idx], ...rec };
-    await syncCollection('journal', state.journal[idx], editingTradeId);
-  } else {
-    const localId = uid();
-    const doc = { id: localId, ...rec };
-    state.journal.unshift(doc); selectedTradeId = doc.id;
-    const remoteId = await syncCollection('journal', doc);
-    if (remoteId) doc.id = remoteId;
-  }
-  saveState(); $('#tradeModal').classList.add('hidden'); renderAll();
-}
-function guessSector(ticker) {
-  const map = { FPT:'Công nghệ', HPG:'Thép', DGC:'Hóa chất', SSI:'Chứng khoán', MWG:'Bán lẻ', CTR:'Hạ tầng' };
-  return map[ticker] || '—';
-}
-
-function openPatternModal(id=null) {
-  editingPatternId = id;
-  const p = id ? state.patterns.find(x => x.id === id) : null;
-  $('#patternName').value = p?.name || '';
-  $('#patternStrategy').value = p?.strategy || '';
-  $('#patternImage').value = p?.image || '';
-  $('#patternDescription').value = p?.description || '';
-  $('#patternConditionsInput').value = (p?.conditions || []).join('\n');
-  $('#patternTriggersInput').value = (p?.triggers || []).join('\n');
-  $('#patternImageFile').value = '';
-  $('#patternModal').classList.remove('hidden');
-}
-function patternFilePreview(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => { $('#patternImage').value = reader.result; };
-  reader.readAsDataURL(file);
-}
-async function savePattern() {
-  const rec = {
-    userId: session.uid,
-    name: $('#patternName').value.trim(),
-    strategy: $('#patternStrategy').value.trim(),
-    image: $('#patternImage').value.trim() || 'mau hinh.png',
-    description: $('#patternDescription').value.trim(),
-    conditions: parseLines($('#patternConditionsInput').value),
-    triggers: parseLines($('#patternTriggersInput').value),
-    tqBias: { pattern: 24, market: 15, entry: 15, risk: 16, discipline: 8 },
-    updatedAt: Date.now()
-  };
-  if (editingPatternId) {
-    const idx = state.patterns.findIndex(x => x.id === editingPatternId);
-    state.patterns[idx] = { ...state.patterns[idx], ...rec };
-    await syncCollection('patterns', state.patterns[idx], editingPatternId);
-  } else {
-    const localId = uid();
-    const doc = { id: localId, ...rec };
-    state.patterns.unshift(doc); selectedPatternId = doc.id;
-    const remoteId = await syncCollection('patterns', doc);
-    if (remoteId) doc.id = remoteId;
-  }
-  saveState(); $('#patternModal').classList.add('hidden'); renderAll();
-}
-async function deleteSelectedPattern() {
-  const p = getSelectedPattern(); if (!p) return;
-  state.patterns = state.patterns.filter(x => x.id !== p.id);
-  selectedPatternId = state.patterns[0]?.id || null;
-  saveState(); await deleteRemote('patterns', p.id); renderAll();
-}
-
-async function resetPassword() {
-  $('#accountMsg').textContent = '';
-  if (!window.firebaseBoot.auth || session.isDemo) { $('#accountMsg').textContent = 'Demo mode không hỗ trợ reset password.'; return; }
-  try { await window.firebaseBoot.auth.sendPasswordResetEmail(session.email); $('#accountMsg').textContent = 'Đã gửi email reset password.'; } catch (e) { $('#accountMsg').textContent = e.message; }
-}
-async function changeEmail() {
-  $('#accountMsg').textContent = '';
-  if (!window.firebaseBoot.auth || session.isDemo) { $('#accountMsg').textContent = 'Demo mode không hỗ trợ đổi email.'; return; }
-  const newEmail = $('#changeEmailInput').value.trim();
-  try { await window.firebaseBoot.auth.currentUser.updateEmail(newEmail); $('#accountMsg').textContent = 'Đổi email thành công. Hãy đăng nhập lại nếu cần.'; } catch (e) { $('#accountMsg').textContent = e.message; }
-}
-
-function toggleBreathing() {
-  if (breathRunning) {
-    clearInterval(breathInterval); breathRunning = false; $('#toggleBreathBtn').textContent = 'Bắt đầu 2 phút'; $('#breathPhase').textContent = 'Sẵn sàng'; $('#sidebarBreathProgress').style.width = '0%'; $('#breathProgress').style.width = '0%'; $('#breathCircle').style.transform = 'scale(1)'; return;
-  }
-  const inhale = Number($('#breathIn').value || 4), hold = Number($('#breathHold').value || 7), exhale = Number($('#breathOut').value || 8);
-  const cycle = inhale + hold + exhale; const total = cycle * 6; breathTick = 0; breathRunning = true; $('#toggleBreathBtn').textContent = 'Dừng bài thở';
-  breathInterval = setInterval(() => {
-    breathTick++;
-    const mod = breathTick % cycle;
-    let phase = 'Hít vào'; let scale = 1.08;
-    if (mod >= inhale && mod < inhale + hold) { phase = 'Giữ'; scale = 1.14; }
-    else if (mod >= inhale + hold) { phase = 'Thở ra'; scale = 0.96; }
-    $('#breathPhase').textContent = phase; $('#breathCircle').style.transform = `scale(${scale})`;
-    const pct = (breathTick / total) * 100; $('#breathProgress').style.width = pct + '%'; $('#sidebarBreathProgress').style.width = pct + '%';
-    if (breathTick >= total) { clearInterval(breathInterval); breathRunning = false; $('#toggleBreathBtn').textContent = 'Bắt đầu 2 phút'; $('#breathPhase').textContent = 'Hoàn thành'; }
-  }, 1000);
-}
-
-function init() {
-  bindCommon();
-  renderAll();
-  lucide.createIcons();
-  renderAuthDebug({ action: 'init' });
-  if (window.firebaseBoot.ready && window.firebaseBoot.auth) {
-    window.firebaseBoot.auth.onAuthStateChanged(async user => {
-      if (user) {
-        renderAuthDebug({ action: 'auth_state_signed_in', uid: user.uid, email: user.email || '' });
-        await ensureUserProfile(user);
-      } else {
-        renderAuthDebug({ action: 'auth_state_signed_out' });
-      }
-    });
-  } else {
-    renderAuthDebug({ action: 'firebase_not_ready' });
-  }
-}
+state.selectedTradeId = state.journal[0]?.id || null;
 
 init();
+
+function init(){
+  document.body.classList.toggle('light', state.theme === 'light');
+  bindEvents();
+  renderAll();
+}
+
+function bindEvents(){
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
+  document.querySelectorAll('.subtab-btn').forEach(btn=>btn.addEventListener('click',()=>switchSubtab(btn.dataset.subtab)));
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  document.getElementById('newTradeBtn').addEventListener('click', ()=>openTradeModal());
+  document.getElementById('addWatchBtn').addEventListener('click', ()=>openWatchModal());
+  document.getElementById('addPatternBtn').addEventListener('click', ()=>openPatternModal());
+  document.getElementById('filterDate').addEventListener('change', renderJournalTable);
+  document.getElementById('filterStatus').addEventListener('change', renderJournalTable);
+  document.getElementById('filterResult').addEventListener('change', renderJournalTable);
+  document.getElementById('filterStrategy').addEventListener('change', renderJournalTable);
+  document.getElementById('globalSearch').addEventListener('input', ()=>{ renderJournalTable(); renderWatchlist(); renderPatterns(); });
+  document.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.jump)));
+  document.getElementById('breathBtn').addEventListener('click', toggleBreathing);
+}
+
+function renderAll(){
+  renderSidebar();
+  renderDashboard();
+  renderWatchlist();
+  renderJournalTable();
+  renderTradeDetail();
+  renderTradeQuality();
+  renderPositionPanels();
+  renderAnalysis();
+  renderMarketPanels();
+  renderMindsetPanels();
+  renderPlaybook();
+  renderMistakes();
+  renderPatterns();
+  renderReviews();
+}
+
+function renderSidebar(){
+  document.getElementById('sideDistDays').textContent = state.market.distDays;
+  document.getElementById('sideRiskMode').textContent = marketGuidance(state.market.distDays).label;
+  document.getElementById('sideLeading').textContent = state.market.leaders.join(' · ');
+}
+
+function renderDashboard(){
+  const trades = state.journal;
+  const closed = trades.filter(t=>t.result !== 'open');
+  const wins = closed.filter(t=>t.result==='win').length;
+  const losses = closed.filter(t=>t.result==='loss').length;
+  const winRate = closed.length ? ((wins/closed.length)*100).toFixed(1) : '0.0';
+  const qualityAvg = trades.length ? average(trades.map(t=>t.tradeQuality.total)) : 0;
+  const qualityLabel = gradeFromScore(qualityAvg).grade;
+  const riskAlerts = trades.filter(t=>t.execution !== 'Đúng kế hoạch').length;
+  document.getElementById('kpiMarket').textContent = marketGuidance(state.market.distDays).label;
+  document.getElementById('kpiMarketSub').textContent = `${state.market.distDays} ngày phân phối, dòng ${state.market.leaders[0]} dẫn dắt`;
+  document.getElementById('kpiWatchlist').textContent = String(state.watchlist.length).padStart(2,'0');
+  document.getElementById('kpiWinRate').textContent = `${winRate}%`;
+  document.getElementById('kpiWinRateSub').textContent = `${wins} thắng / ${losses} thua / ${trades.filter(t=>t.result==='open').length} đang mở`;
+  document.getElementById('kpiQuality').textContent = qualityLabel;
+  document.getElementById('kpiRiskAlert').textContent = String(riskAlerts).padStart(2,'0');
+  document.getElementById('dashboardWatchlist').innerHTML = filteredWatchlistByGroup('Gần điểm mua').map(renderWatchCard).join('');
+  document.getElementById('passRateBox').textContent = `${Math.round(calcChecklistPassRate())}%`;
+  document.getElementById('repeatMistakeBox').textContent = mostRepeatedMistake() || 'Không';
+}
+
+function renderWatchlist(){
+  document.getElementById('watch-near').innerHTML = filteredWatchlistByGroup('Gần điểm mua').map(renderWatchCard).join('');
+  document.getElementById('watch-follow').innerHTML = filteredWatchlistByGroup('Theo dõi').map(renderWatchCard).join('');
+  document.getElementById('watch-long').innerHTML = filteredWatchlistByGroup('Dài hạn').map(renderWatchCard).join('');
+  bindDynamicActions();
+}
+
+function renderWatchCard(item){
+  return `<article class="watch-card">
+    <div class="watch-card-head"><div><h4>${item.ticker}</h4><small>${item.setup}</small></div><span class="badge ${item.group==='Dài hạn'?'blue':'green'}">${item.status}</span></div>
+    <div class="metric-grid" style="margin-top:12px"><div class="metric-box"><span>Buy zone</span><strong>${item.buyZone}</strong></div><div class="metric-box"><span>Risk</span><strong>${item.risk}</strong></div></div>
+    <div class="card-actions">
+      <button class="btn btn-primary js-watch-create" data-id="${item.id}">Tạo lệnh</button>
+      <button class="btn btn-light js-watch-checklist" data-id="${item.id}">Mở checklist</button>
+      <button class="btn btn-secondary js-watch-edit" data-id="${item.id}">Sửa</button>
+      <button class="btn btn-danger js-watch-delete" data-id="${item.id}">Xóa</button>
+    </div>
+  </article>`;
+}
+
+function renderJournalTable(){
+  const tbody = document.getElementById('journalTableBody');
+  const rows = filteredTrades();
+  tbody.innerHTML = rows.map(t=>`<tr data-trade-id="${t.id}">
+    <td>${t.ticker}</td><td>${t.date}</td><td><span class="badge blue">${t.strategy}</span></td><td>${t.setup}</td><td>${t.sector}</td>
+    <td>${fmtNum(t.entryPrice)}</td><td>${fmtNum(t.stopLoss)}</td>
+    <td class="${t.pnlPct==null?'':t.pnlPct>=0?'text-green':'text-red'}">${t.pnlPct==null?'—':t.pnlPct+'%'}</td>
+    <td class="${t.r==null?'':t.r>=0?'text-green':'text-red'}">${t.r==null?'—':t.r+'R'}</td>
+    <td><span class="badge ${qualityBadgeClass(t.tradeQuality.grade)}">${t.tradeQuality.grade} Setup</span></td>
+    <td><span class="badge ${t.execution==='Đúng kế hoạch'?'green':t.execution==='Vi phạm kế hoạch'?'red':'yellow'}">${t.execution}</span></td>
+    <td><span class="badge ${t.result==='win'?'green':t.result==='loss'?'red':'blue'}">${t.result==='win'?'Lãi':t.result==='loss'?'Lỗ':'Đang mở'}</span></td>
+    <td>${t.mistake}</td>
+    <td><span class="badge">chart</span></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click',()=>{ state.selectedTradeId = tr.dataset.tradeId; renderTradeDetail(); renderTradeQuality(); }));
+}
+
+function renderTradeDetail(){
+  const trade = selectedTrade(); if(!trade) return;
+  document.getElementById('tradeDetailPanel').innerHTML = `
+    <div class="panel-head with-actions"><div><h2>Chi tiết lệnh: ${trade.ticker}</h2><p>${trade.strategy} · ${trade.setup} · ${trade.sector}</p></div><div class="inline-tags"><span class="badge green">Market ${trade.marketPulse}</span><span class="badge ${qualityBadgeClass(trade.tradeQuality.grade)}">${trade.tradeQuality.grade} Setup</span></div></div>
+    <div class="metric-grid"><div class="metric-box"><span>Entry</span><strong>${fmtNum(trade.entryPrice)}</strong></div><div class="metric-box"><span>Stop</span><strong>${fmtNum(trade.stopLoss)}</strong></div><div class="metric-box"><span>Exit</span><strong>${trade.exitPrice?fmtNum(trade.exitPrice):'—'}</strong></div><div class="metric-box"><span>Quantity</span><strong>${trade.quantity}</strong></div></div>
+    <div class="steps-grid">
+      <div class="step-box"><h4>① Kiểm setup</h4><p>Mở chart lý thuyết và checklist trước khi bấm tạo lệnh.</p></div>
+      <div class="step-box"><h4>② Tính risk</h4><p>Không cho phép tạo lệnh nếu chưa qua position sizing.</p></div>
+      <div class="step-box"><h4>③ Ghi cảm xúc</h4><p>Check-in nhanh để tách lệnh logic khỏi lệnh cảm xúc.</p></div>
+    </div>
+    <div class="chart-compare">
+      <div class="chart-box"><h3>Biểu đồ lý thuyết</h3><div class="chart-frame">${renderImage(trade.theoryImage,'Chart mẫu hình chuẩn')}</div></div>
+      <div class="chart-box"><h3>Biểu đồ vào lệnh thực tế</h3><div class="chart-frame">${renderImage(trade.actualImage,'Ảnh chart thực chiến')}</div></div>
+    </div>
+    <div class="chart-compare" style="margin-top:16px">
+      <div class="chart-box"><h3>Checklist trước lệnh</h3><div class="checklist-list">${trade.checklist.map((c,i)=>`<div class="check-item"><span>${c}</span><span class="badge ${i<trade.checklist.length-1?'green':'yellow'}">${i<trade.checklist.length-1?'Đạt':'Theo dõi'}</span></div>`).join('')}</div></div>
+      <div class="chart-box"><h3>Ghi chú & cảm xúc</h3><p>${trade.note}</p><div class="inline-tags"><span class="badge blue">Cảm xúc: ${trade.emotion}</span><span class="badge ${trade.mistake==='Không'?'green':'red'}">Sai lầm: ${trade.mistake}</span><span class="badge yellow">Số ngày phân phối ${state.market.distDays}</span></div><div class="card-actions"><button class="btn btn-primary js-edit-trade" data-id="${trade.id}">Sửa lệnh</button><button class="btn btn-light">Viết hậu kiểm</button></div></div>
+    </div>`;
+  bindDynamicActions();
+  document.querySelectorAll('.chart-frame img').forEach(img=>img.addEventListener('click',()=>openImageModal(img.src)));
+}
+
+function renderTradeQuality(){
+  const trade = selectedTrade(); if(!trade) return;
+  const tq = trade.tradeQuality;
+  const breakdownHtml = tq.breakdown.map(b=>`<div class="progress-row"><span>${b.label}</span><div class="progress-track"><div class="progress-bar" style="width:${Math.min(100,(b.score/b.max)*100)}%"></div></div><strong>${b.score}/${b.max}</strong></div>`).join('');
+  document.getElementById('tradeQualityPanel').innerHTML = `
+    <h2>Trade Quality</h2>
+    <p>Checklist JSON hoàn chỉnh + chế độ 2 tự động gợi ý theo mẫu hình và thị trường.</p>
+    <div class="metric-grid">
+      <div class="metric-box"><span>Tổng điểm</span><strong>${tq.total}/100</strong></div>
+      <div class="metric-box"><span>Xếp hạng</span><strong>${tq.grade}</strong></div>
+      <div class="metric-box"><span>Auto suggest</span><strong>Bật</strong></div>
+      <div class="metric-box"><span>Kết luận</span><strong>${tq.summary}</strong></div>
+    </div>
+    <div class="progress-wrap">${breakdownHtml}</div>
+    <div class="card-actions" style="margin-top:16px"><button class="btn btn-secondary" id="showTqJsonBtn">Xem JSON checklist</button></div>
+    <div id="tqJsonWrap" class="hidden" style="margin-top:14px"><div class="json-box">${escapeHtml(JSON.stringify(buildTradeQualityJSON(trade), null, 2))}</div></div>
+  `;
+  document.getElementById('showTqJsonBtn').addEventListener('click',()=>document.getElementById('tqJsonWrap').classList.toggle('hidden'));
+  document.getElementById('behaviorAlerts').innerHTML = behaviorAlertsHTML();
+}
+
+function renderPositionPanels(){
+  const trade = selectedTrade() || state.journal[0];
+  const panelHtml = positionPanelHTML(trade);
+  document.getElementById('positionPanel').innerHTML = panelHtml;
+  document.getElementById('positionStandalone').innerHTML = panelHtml;
+  bindPositionPanel('positionPanel');
+  bindPositionPanel('positionStandalone');
+}
+
+function positionPanelHTML(trade){
+  return `
+    <h2>Position Sizing</h2><p>Đơn giản hóa phần tính toán để trader thao tác cực nhanh trước khi vào lệnh.</p>
+    <div class="form-grid">
+      <div class="field"><label>Tài khoản</label><input class="input js-pos-account" type="number" value="200000000"></div>
+      <div class="field"><label>Risk %</label><input class="input js-pos-risk" type="number" step="0.1" value="1"></div>
+      <div class="field"><label>Điểm mua</label><input class="input js-pos-entry" type="number" step="0.1" value="${trade.entryPrice}"></div>
+      <div class="field"><label>Stop loss</label><input class="input js-pos-stop" type="number" step="0.1" value="${trade.stopLoss}"></div>
+    </div>
+    <div class="metric-grid js-pos-results" style="margin-top:16px"></div>
+    <div class="analysis-item" style="margin-top:12px;background:var(--yellow-soft);color:var(--text)">Cảnh báo: stop loss rộng hơn bình thường. Giảm khối lượng để không vượt risk account.</div>
+    <div class="card-actions"><button class="btn btn-primary">Khóa size và tạo lệnh</button></div>`;
+}
+
+function bindPositionPanel(rootId){
+  const root = document.getElementById(rootId); if(!root) return;
+  const account = root.querySelector('.js-pos-account'); const risk = root.querySelector('.js-pos-risk'); const entry = root.querySelector('.js-pos-entry'); const stop = root.querySelector('.js-pos-stop'); const results = root.querySelector('.js-pos-results');
+  const update = ()=>{
+    const calc = positionCalc(+account.value, +risk.value, +entry.value, +stop.value);
+    results.innerHTML = `<div class="metric-box"><span>Rủi ro tối đa</span><strong>${fmtMoney(calc.riskAmount)}</strong></div><div class="metric-box"><span>SL tối đa</span><strong>${calc.shares} cp</strong></div><div class="metric-box"><span>Giá trị vị thế</span><strong>${fmtMoney(calc.capital)}</strong></div><div class="metric-box"><span>% vốn sử dụng</span><strong>${calc.capitalPct}%</strong></div>`;
+  };
+  [account,risk,entry,stop].forEach(el=>el.addEventListener('input',update)); update();
+}
+
+function renderAnalysis(){
+  const weekdayRank = calcWeekdayAnalysis();
+  document.getElementById('analysisDay').innerHTML = `<h2>Ngày giao dịch hiệu quả</h2><div class="analysis-list">${weekdayRank.map((x,i)=>`<div class="analysis-item ${i===0?'kpi-green':''}">${x.day}: ${x.note}</div>`).join('')}</div>`;
+  const sectorRank = calcSectorAnalysis();
+  document.getElementById('analysisSector').innerHTML = `<h2>Nhóm ngành tốt nhất</h2><div class="analysis-list">${sectorRank.map((x,i)=>`<div class="analysis-item ${i===0?'kpi-green':''}">${x.name}</div>`).join('')}</div>`;
+  const mistakeRank = calcMistakes();
+  document.getElementById('analysisMistake').innerHTML = `<h2>Sai lầm lặp lại</h2><div class="analysis-list">${mistakeRank.map((x,i)=>`<div class="analysis-item ${i===0?'kpi-warn':''}">${i+1}. ${x}</div>`).join('')}</div>`;
+}
+
+function renderMarketPanels(){
+  const g = marketGuidance(state.market.distDays);
+  document.getElementById('marketOverviewPanel').innerHTML = `<h2>Thị trường tổng quan</h2><p>Theo dõi số ngày phân phối, tâm lý và nhóm dẫn dắt.</p><div class="metric-grid"><div class="metric-box"><span>Số ngày phân phối</span><strong>${state.market.distDays}</strong></div><div class="metric-box"><span>Tâm lý thị trường</span><strong>${state.market.sentiment}</strong></div><div class="metric-box full"><span>Ngành dẫn dắt</span><strong>${state.market.leaders.join(' · ')}</strong></div></div><div class="analysis-item" style="margin-top:12px;background:var(--yellow-soft)">${g.message}</div>`;
+  document.getElementById('marketSourcesPanel').innerHTML = `<h2>Nguồn thông tin thị trường</h2><p>Link lấy tin và dữ liệu từ các nguồn quen thuộc.</p><div class="source-grid">${state.market.sources.map(s=>`<div class="source-card"><strong>${s.name}</strong><p>${s.type}</p><small>${s.mood}</small><div class="card-actions"><a class="btn btn-light" href="${s.url}" target="_blank">Mở nguồn</a></div></div>`).join('')}</div>`;
+  document.getElementById('marketManualPanel').innerHTML = `<h2>Thị trường chuyên nghiệp</h2><p>Đánh thủ công số ngày phân phối, ngành dẫn dắt và tâm lý thị trường.</p><div class="form-grid"><div class="field"><label>Số ngày phân phối</label><input id="marketDistInput" class="input" type="number" min="0" max="10" value="${state.market.distDays}"></div><div class="field"><label>Tâm lý thị trường</label><select id="marketSentimentInput" class="input"><option ${sel(state.market.sentiment,'Tích cực')}>Tích cực</option><option ${sel(state.market.sentiment,'Trung tính')}>Trung tính</option><option ${sel(state.market.sentiment,'Tiêu cực')}>Tiêu cực</option></select></div><div class="field full"><label>Ngành dẫn dắt (phân tách bằng dấu phẩy)</label><input id="marketLeadersInput" class="input" value="${state.market.leaders.join(', ')}"></div><div class="field full"><label>Ghi chú</label><textarea id="marketNotesInput">${state.market.notes}</textarea></div></div><div class="card-actions"><button id="saveMarketBtn" class="btn btn-primary">Lưu thị trường</button></div>`;
+  document.getElementById('marketGuidePanel').innerHTML = `<h2>Quy tắc số ngày phân phối</h2><div class="rule-list"><div class="rule-item">1–2 ngày: Thị trường bình thường</div><div class="rule-item">3 ngày: Giảm Margin</div><div class="rule-item">4 ngày: Tỷ cổ phiếu 50%</div><div class="rule-item">5–6 ngày trở lên: Giảm tối đa – canh mã dài hạn</div></div><div class="analysis-item" style="margin-top:12px">Kết luận hiện tại: <strong>${g.label}</strong></div>`;
+  document.getElementById('saveMarketBtn').addEventListener('click', saveMarket);
+}
+
+function renderMindsetPanels(){
+  document.getElementById('mindsetCheckinPanel').innerHTML = `<h2>Check-in trước phiên</h2><p>Ghi nhận trạng thái tâm lý trước khi giao dịch.</p><div class="mindset-grid">${renderRange('energy','Mức năng lượng',state.mindset.energy)}${renderRange('calm','Độ bình tĩnh',state.mindset.calm)}${renderRange('fomo','Mức FOMO',state.mindset.fomo)}${renderRange('confidence','Mức tự tin',state.mindset.confidence)}</div><div class="card-actions"><button id="saveMindsetBtn" class="btn btn-primary">Lưu check-in</button></div>`;
+  document.getElementById('mindsetBreathingPanel').innerHTML = `<h2>Rèn luyện tâm lý</h2><p>Thở cơ hoành để giảm FOMO và ổn định quyết định.</p><div class="analysis-item">Hít vào 4 giây → Giữ 7 giây → Thở ra 8 giây → Lặp lại 10 vòng trước phiên hoặc sau lệnh thua.</div><div class="analysis-item kpi-green">Streak tuần này: 4/5 phiên có thực hiện bài thở.</div><div class="card-actions"><button class="btn btn-primary" id="mindBreathBtn">Bắt đầu bài thở 5 phút</button></div>`;
+  document.getElementById('mindsetEditablePanel').innerHTML = document.getElementById('mindsetCheckinPanel').innerHTML;
+  document.getElementById('traderDayPanel').innerHTML = `<h2>1 ngày làm việc của trader chuyên nghiệp</h2><div class="routine-list">${state.mindset.routine.map(x=>`<div class="routine-item">${x}</div>`).join('')}</div>`;
+  document.querySelectorAll('#saveMindsetBtn').forEach(btn=>btn.addEventListener('click', saveMindset));
+  document.getElementById('mindBreathBtn').addEventListener('click', toggleBreathing);
+}
+
+function renderPlaybook(){
+  document.getElementById('playbookCards').innerHTML = playbookCards.map(c=>`<article class="panel"><h2>${c.title}</h2><p>${c.desc}</p><button class="link-btn" data-jump="patterns">Mở checklist chiến lược</button></article>`).join('');
+  document.querySelectorAll('#playbookCards [data-jump]').forEach(b=>b.addEventListener('click',()=>switchTab('patterns')));
+}
+
+function renderMistakes(){
+  const mistakes = calcMistakes();
+  document.getElementById('mistakeDetectorPanel').innerHTML = `<h2>Mistake Detector</h2><p>Hiển thị lỗi theo ngôn ngữ dễ hiểu và gợi ý rule chặn ngay trên giao diện.</p><div class="mistake-list"><div class="analysis-item" style="background:var(--red-soft)">${mistakes[0] || 'Không'}: xuất hiện nhiều nhất trong 10 lệnh gần nhất.</div><div class="analysis-item" style="background:var(--yellow-soft)">${mistakes[1] || 'FOMO'}: thường xuất hiện khi market pulse chưa xác nhận.</div><div class="analysis-item">${mistakes[2] || 'Bán non'}: xảy ra ở nhóm cổ phiếu leader đang mạnh.</div></div>`;
+  document.getElementById('mistakeRulesPanel').innerHTML = `<h2>Rule chặn lỗi</h2><div class="rule-list"><div class="rule-item">Nếu chất lượng lệnh < 70 điểm → không cho tạo lệnh.</div><div class="rule-item">Nếu chưa nhập stop loss → khóa nút mua.</div><div class="rule-item">Nếu market pulse = Risk-off → chỉ cho phép watchlist, không khuyến nghị mua mới.</div></div>`;
+}
+
+function renderPatterns(){
+  const q = document.getElementById('globalSearch').value.trim().toLowerCase();
+  const patterns = state.patterns.filter(p=>!q || [p.name,p.strategy,p.description].join(' ').toLowerCase().includes(q));
+  document.getElementById('patternsGrid').innerHTML = patterns.map(p=>`<article class="pattern-card"><h4>${p.name}</h4><small>${p.strategy}</small><div class="pattern-img">${renderImage(p.image,'Ảnh mẫu hình')}</div><p>${p.description}</p><div class="checklist-list">${p.conditions.slice(0,3).map(c=>`<div class="check-item"><span>${c}</span><span class="badge green">Nền</span></div>`).join('')}</div><div class="card-actions"><button class="btn btn-primary js-pattern-link" data-id="${p.id}">Liên kết sang so sánh</button><button class="btn btn-secondary js-pattern-edit" data-id="${p.id}">Chỉnh sửa</button><button class="btn btn-danger js-pattern-delete" data-id="${p.id}">Xóa</button></div></article>`).join('');
+  bindDynamicActions();
+  document.querySelectorAll('.pattern-img img').forEach(img=>img.addEventListener('click',()=>openImageModal(img.src)));
+}
+
+function renderReviews(){
+  const stats = reviewStats();
+  document.getElementById('weeklyReviewPanel').innerHTML = `<h2>Review tuần</h2><div class="metric-grid"><div class="metric-box"><span>Lệnh thắng</span><strong>${stats.wins}</strong></div><div class="metric-box"><span>Lệnh thua</span><strong>${stats.losses}</strong></div><div class="metric-box"><span>Lợi nhuận ròng</span><strong>${fmtMoney(stats.net)}</strong></div><div class="metric-box"><span>Lỗi lặp lại</span><strong>${stats.repeatMistake}</strong></div></div><div class="field"><label>Bài học tuần</label><textarea id="weeklyReviewText">${state.reviews.weekly}</textarea></div><div class="card-actions"><button id="saveWeeklyReview" class="btn btn-primary">Lưu review tuần</button></div>`;
+  document.getElementById('monthlyReviewPanel').innerHTML = `<h2>Review tháng & Hậu kiểm</h2><p>Lệnh lỗ lớn nhất: <strong>${stats.worstTrade}</strong></p><div class="field"><label>Bài học tháng</label><textarea id="monthlyReviewText">${state.reviews.monthly}</textarea></div><div class="card-actions"><button id="saveMonthlyReview" class="btn btn-primary">Lưu review tháng</button></div>`;
+  document.getElementById('saveWeeklyReview').addEventListener('click',()=>{ state.reviews.weekly = document.getElementById('weeklyReviewText').value; persist(LS_KEYS.reviews,state.reviews); });
+  document.getElementById('saveMonthlyReview').addEventListener('click',()=>{ state.reviews.monthly = document.getElementById('monthlyReviewText').value; persist(LS_KEYS.reviews,state.reviews); });
+}
+
+function bindDynamicActions(){
+  document.querySelectorAll('.js-watch-edit').forEach(b=>b.onclick=()=>openWatchModal(findById(state.watchlist,b.dataset.id)));
+  document.querySelectorAll('.js-watch-delete').forEach(b=>b.onclick=()=>deleteWatch(b.dataset.id));
+  document.querySelectorAll('.js-watch-checklist').forEach(b=>b.onclick=()=>openPatternFromWatch(b.dataset.id));
+  document.querySelectorAll('.js-watch-create').forEach(b=>b.onclick=()=>createTradeFromWatch(b.dataset.id));
+  document.querySelectorAll('.js-edit-trade').forEach(b=>b.onclick=()=>openTradeModal(findById(state.journal,b.dataset.id)));
+  document.querySelectorAll('.js-pattern-edit').forEach(b=>b.onclick=()=>openPatternModal(findById(state.patterns,b.dataset.id)));
+  document.querySelectorAll('.js-pattern-delete').forEach(b=>b.onclick=()=>deletePattern(b.dataset.id));
+  document.querySelectorAll('.js-pattern-link').forEach(b=>b.onclick=()=>linkPatternCompare(b.dataset.id));
+}
+
+function openWatchModal(item=null){
+  const editing = !!item;
+  document.getElementById('watchModal').classList.remove('hidden');
+  document.getElementById('watchModal').innerHTML = `<div class="modal-card"><div class="modal-head"><div><h2>${editing?'Chỉnh sửa':'Tạo'} watchlist</h2><p>Quản lý 3 nhóm: Gần điểm mua, Theo dõi, Dài hạn</p></div><button class="btn btn-secondary js-close">Đóng</button></div>
+  <div class="form-grid">
+    <div class="field"><label>Nhóm</label><select id="watchGroup" class="input"><option ${sel(item?.group,'Gần điểm mua')}>Gần điểm mua</option><option ${sel(item?.group,'Theo dõi')}>Theo dõi</option><option ${sel(item?.group,'Dài hạn')}>Dài hạn</option></select></div>
+    <div class="field"><label>Mã</label><input id="watchTicker" class="input" value="${item?.ticker||''}"></div>
+    <div class="field"><label>Ngành</label><input id="watchSector" class="input" value="${item?.sector||''}"></div>
+    <div class="field"><label>Setup</label><input id="watchSetup" class="input" value="${item?.setup||''}"></div>
+    <div class="field"><label>Buy zone</label><input id="watchBuyZone" class="input" value="${item?.buyZone||''}"></div>
+    <div class="field"><label>Risk</label><input id="watchRisk" class="input" value="${item?.risk||'Thấp'}"></div>
+    <div class="field full"><label>Liên kết mẫu hình</label><select id="watchPattern" class="input"><option value="">-- chọn mẫu hình --</option>${state.patterns.map(p=>`<option value="${p.id}" ${item?.patternId===p.id?'selected':''}>${p.name}</option>`).join('')}</select></div>
+  </div><div class="card-actions"><button id="saveWatchBtn" class="btn btn-primary">Lưu</button></div></div>`;
+  document.querySelector('#watchModal .js-close').onclick=()=>document.getElementById('watchModal').classList.add('hidden');
+  document.getElementById('saveWatchBtn').onclick=()=>{
+    const obj = { id:item?.id||uid(), group:val('watchGroup'), ticker:val('watchTicker'), sector:val('watchSector'), setup:val('watchSetup'), buyZone:val('watchBuyZone'), risk:val('watchRisk'), status:val('watchGroup'), patternId:val('watchPattern') };
+    upsert(state.watchlist,obj); persist(LS_KEYS.watchlist,state.watchlist); document.getElementById('watchModal').classList.add('hidden'); renderAll();
+  };
+}
+
+function openTradeModal(item=null){
+  const editing = !!item;
+  const patternOptions = state.patterns.map(p=>`<option value="${p.id}" ${item?.patternId===p.id?'selected':''}>${p.name}</option>`).join('');
+  document.getElementById('tradeModal').classList.remove('hidden');
+  document.getElementById('tradeModal').innerHTML = `<div class="modal-card"><div class="modal-head"><div><h2>${editing?'Chỉnh sửa':'Tạo'} lệnh</h2><p>Liên kết với Trade Quality và mẫu hình</p></div><button class="btn btn-secondary js-close">Đóng</button></div>
+  <div class="form-grid">
+    <div class="field"><label>Ngày</label><input id="tradeDate" type="date" class="input" value="${item?.date||todayISO()}"></div>
+    <div class="field"><label>Mã</label><input id="tradeTicker" class="input" value="${item?.ticker||''}"></div>
+    <div class="field"><label>Ngành</label><input id="tradeSector" class="input" value="${item?.sector||''}"></div>
+    <div class="field"><label>Chiến lược</label><select id="tradeStrategy" class="input"><option ${sel(item?.strategy,'Mark Minervini')}>Mark Minervini</option><option ${sel(item?.strategy,'CANSLIM')}>CANSLIM</option><option ${sel(item?.strategy,'Price Action')}>Price Action</option><option ${sel(item?.strategy,'Wyckoff')}>Wyckoff</option></select></div>
+    <div class="field"><label>Setup</label><input id="tradeSetup" class="input" value="${item?.setup||''}"></div>
+    <div class="field"><label>Trạng thái</label><select id="tradeStatus" class="input"><option ${sel(item?.status,'Đã đóng')}>Đã đóng</option><option ${sel(item?.status,'Đang mở')}>Đang mở</option></select></div>
+    <div class="field"><label>Entry</label><input id="tradeEntry" type="number" step="0.1" class="input" value="${item?.entryPrice||''}"></div>
+    <div class="field"><label>Stop loss</label><input id="tradeStop" type="number" step="0.1" class="input" value="${item?.stopLoss||''}"></div>
+    <div class="field"><label>Exit</label><input id="tradeExit" type="number" step="0.1" class="input" value="${item?.exitPrice||''}"></div>
+    <div class="field"><label>Quantity</label><input id="tradeQty" type="number" class="input" value="${item?.quantity||''}"></div>
+    <div class="field"><label>Kết quả</label><select id="tradeResult" class="input"><option value="open" ${item?.result==='open'?'selected':''}>Đang mở</option><option value="win" ${item?.result==='win'?'selected':''}>Lãi</option><option value="loss" ${item?.result==='loss'?'selected':''}>Lỗ</option></select></div>
+    <div class="field"><label>Cảm xúc</label><select id="tradeEmotion" class="input"><option ${sel(item?.emotion,'Tự tin')}>Tự tin</option><option ${sel(item?.emotion,'Sợ hãi')}>Sợ hãi</option><option ${sel(item?.emotion,'Tham lam')}>Tham lam</option><option ${sel(item?.emotion,'Do dự')}>Do dự</option></select></div>
+    <div class="field full"><label>Mẫu hình liên kết</label><select id="tradePattern" class="input"><option value="">-- chọn mẫu hình --</option>${patternOptions}</select></div>
+    <div class="field full"><label>Ghi chú</label><textarea id="tradeNote">${item?.note||''}</textarea></div>
+  </div><div class="card-actions"><button id="saveTradeBtn" class="btn btn-primary">Lưu lệnh</button><button id="deleteTradeBtn" class="btn btn-danger ${editing?'':'hidden'}">Xóa</button></div></div>`;
+  document.querySelector('#tradeModal .js-close').onclick=()=>document.getElementById('tradeModal').classList.add('hidden');
+  document.getElementById('tradePattern').addEventListener('change', ()=>applyPatternSuggestion());
+  document.getElementById('saveTradeBtn').onclick=()=>{
+    const obj = buildTradeObject(item?.id); upsert(state.journal, enrichTrade(obj)); persist(LS_KEYS.journal,state.journal); state.selectedTradeId = obj.id; document.getElementById('tradeModal').classList.add('hidden'); renderAll();
+  };
+  if(editing) document.getElementById('deleteTradeBtn').onclick=()=>{ state.journal = state.journal.filter(t=>t.id!==item.id); persist(LS_KEYS.journal,state.journal); document.getElementById('tradeModal').classList.add('hidden'); state.selectedTradeId = state.journal[0]?.id || null; renderAll(); };
+}
+
+function openPatternModal(item=null){
+  const editing = !!item;
+  document.getElementById('patternModal').classList.remove('hidden');
+  document.getElementById('patternModal').innerHTML = `<div class="modal-card"><div class="modal-head"><div><h2>${editing?'Chỉnh sửa':'Tạo'} mẫu hình</h2><p>Ảnh, điều kiện nền, điều kiện kích hoạt và bias Trade Quality</p></div><button class="btn btn-secondary js-close">Đóng</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Tên mẫu hình</label><input id="pName" class="input" value="${item?.name||''}"></div>
+      <div class="field"><label>Chiến lược</label><input id="pStrategy" class="input" value="${item?.strategy||''}"></div>
+      <div class="field full"><label>Mô tả</label><textarea id="pDesc">${item?.description||''}</textarea></div>
+      <div class="field full"><label>URL ảnh</label><input id="pImage" class="input" value="${item?.image||''}"></div>
+      <div class="field full"><label>Điều kiện nền (mỗi dòng 1 điều kiện)</label><textarea id="pConditions">${(item?.conditions||[]).join('\n')}</textarea></div>
+      <div class="field full"><label>Điều kiện kích hoạt (mỗi dòng 1 điều kiện)</label><textarea id="pTriggers">${(item?.triggers||[]).join('\n')}</textarea></div>
+    </div>
+    <div class="image-preview" id="patternPreview">${item?.image?`<img src="${item.image}">`:'Xem trước ảnh mẫu hình'}</div>
+    <div class="card-actions"><button id="savePatternBtn" class="btn btn-primary">Lưu mẫu hình</button>${editing?'<button id="deletePatternBtn" class="btn btn-danger">Xóa</button>':''}</div>
+  </div>`;
+  document.querySelector('#patternModal .js-close').onclick=()=>document.getElementById('patternModal').classList.add('hidden');
+  document.getElementById('pImage').addEventListener('input',e=>document.getElementById('patternPreview').innerHTML = e.target.value?`<img src="${e.target.value}">`:'Xem trước ảnh mẫu hình');
+  document.getElementById('savePatternBtn').onclick=()=>{
+    const obj = { id:item?.id||slug(val('pName'))||uid(), name:val('pName'), strategy:val('pStrategy'), description:val('pDesc'), image:val('pImage'), conditions:lines('pConditions'), triggers:lines('pTriggers'), tqBias: item?.tqBias || {pattern:24,market:16,entry:16,risk:18,discipline:8} };
+    upsert(state.patterns,obj); persist(LS_KEYS.patterns,state.patterns); document.getElementById('patternModal').classList.add('hidden'); renderAll();
+  };
+  if(editing) document.getElementById('deletePatternBtn').onclick=()=>deletePattern(item.id);
+}
+
+function openImageModal(src){ document.getElementById('imageModal').classList.remove('hidden'); document.getElementById('imageModal').innerHTML = `<div class="modal-card"><div class="modal-head"><h2>Xem ảnh</h2><button class="btn btn-secondary js-close">Đóng</button></div><div class="image-preview" style="height:auto"><img src="${src}"></div></div>`; document.querySelector('#imageModal .js-close').onclick=()=>document.getElementById('imageModal').classList.add('hidden'); }
+
+function deleteWatch(id){ state.watchlist = state.watchlist.filter(x=>x.id!==id); persist(LS_KEYS.watchlist,state.watchlist); renderAll(); }
+function deletePattern(id){ state.patterns = state.patterns.filter(x=>x.id!==id); persist(LS_KEYS.patterns,state.patterns); document.getElementById('patternModal').classList.add('hidden'); renderAll(); }
+function openPatternFromWatch(id){ const w = findById(state.watchlist,id); if(w?.patternId){ switchTab('patterns'); linkPatternCompare(w.patternId);} }
+function createTradeFromWatch(id){ const w = findById(state.watchlist,id); openTradeModal({ticker:w.ticker, sector:w.sector, strategy:'Mark Minervini', setup:w.setup, status:'Đang mở', result:'open', quantity:0, entryPrice:'', stopLoss:'', patternId:w.patternId, note:`Tạo lệnh từ watchlist ${w.group}`}); }
+function linkPatternCompare(patternId){ state.selectedPatternId = patternId; switchTab('journal'); switchSubtab('journal-list'); const trade = selectedTrade(); if(trade){ trade.theoryImage = findById(state.patterns, patternId)?.image || trade.theoryImage; renderTradeDetail(); } }
+
+function buildTradeObject(id){
+  const result = val('tradeResult'); const entry = +val('tradeEntry'); const exit = +val('tradeExit'); const stop = +val('tradeStop'); const qty = +val('tradeQty');
+  const pnlPct = result==='open' || !exit || !entry ? null : round(((exit-entry)/entry)*100,2);
+  const pnl = result==='open' || !exit || !qty ? 0 : Math.round((exit-entry)*qty);
+  const r = result==='open' || !stop || !entry || !exit ? null : round((exit-entry)/(entry-stop),2);
+  const pattern = findById(state.patterns,val('tradePattern'));
+  const obj = { id:id||uid(), date:val('tradeDate'), ticker:val('tradeTicker').toUpperCase(), sector:val('tradeSector'), strategy:val('tradeStrategy'), setup:val('tradeSetup'), status:val('tradeStatus'), entryPrice:entry, stopLoss:stop, exitPrice:val('tradeExit')?exit:null, quantity:qty, pnlPct, pnl, r, result, emotion:val('tradeEmotion'), mistake: inferMistake(result,val('tradeEmotion')), execution: inferExecution(result), patternId:val('tradePattern'), marketPulse:state.market.sentiment, note:val('tradeNote'), checklist: pattern?.conditions?.slice(0,3) || ['Checklist chưa chọn'], theoryImage: pattern?.image || 'mau hinh.png', actualImage:'nhat ky.png' };
+  return obj;
+}
+
+function enrichTrade(trade){
+  const tq = suggestTradeQuality(trade);
+  return {...trade, tradeQuality:tq};
+}
+
+function suggestTradeQuality(trade){
+  const pattern = findById(state.patterns, trade.patternId) || defaultPatterns[0];
+  const bias = pattern?.tqBias || {pattern:24, market:16, entry:15, risk:18, discipline:8};
+  const marketAdj = state.market.distDays <= 2 ? 2 : state.market.distDays === 3 ? 0 : -3;
+  const entryAdj = trade.result === 'loss' ? -2 : trade.result === 'open' ? -1 : 1;
+  const disciplineAdj = trade.execution === 'Đúng kế hoạch' ? 1 : trade.execution === 'Vi phạm kế hoạch' ? -2 : -1;
+  const mistakeAdj = trade.mistake === 'Không' ? 0 : trade.mistake.includes('FOMO') ? -2 : -1;
+  const breakdown = [
+    {key:'pattern', label:'Chất lượng mẫu hình', max:30, score: clamp(bias.pattern,0,30)},
+    {key:'market', label:'Bối cảnh thị trường', max:20, score: clamp(bias.market + marketAdj,0,20)},
+    {key:'entry', label:'Điểm vào lệnh & timing', max:20, score: clamp(bias.entry + entryAdj,0,20)},
+    {key:'risk', label:'Quản trị rủi ro', max:20, score: clamp(bias.risk,0,20)},
+    {key:'discipline', label:'Tâm lý & kỷ luật', max:10, score: clamp(bias.discipline + disciplineAdj + mistakeAdj,0,10)}
+  ];
+  const total = breakdown.reduce((s,x)=>s+x.score,0);
+  const grade = gradeFromScore(total).grade;
+  const summary = total >= 90 ? 'Ưu tiên cao' : total >= 80 ? 'Setup tốt' : total >= 70 ? 'Theo dõi kỹ' : total >= 60 ? 'Chất lượng trung bình' : 'Không nên vào lớn';
+  return { total, grade, summary, breakdown };
+}
+
+function buildTradeQualityJSON(trade){
+  return {
+    tradeId: trade.id,
+    ticker: trade.ticker,
+    grade: trade.tradeQuality.grade,
+    total: trade.tradeQuality.total,
+    autoSuggest: true,
+    patternId: trade.patternId,
+    config: tradeQualityJSON,
+    breakdown: trade.tradeQuality.breakdown,
+    marketContext: { distDays: state.market.distDays, sentiment: state.market.sentiment, leaders: state.market.leaders },
+    notes: trade.note
+  };
+}
+
+function filteredTrades(){
+  const q = document.getElementById('globalSearch').value.trim().toLowerCase();
+  const month = document.getElementById('filterDate').value;
+  const status = document.getElementById('filterStatus').value;
+  const result = document.getElementById('filterResult').value;
+  const strategy = document.getElementById('filterStrategy').value;
+  return state.journal.filter(t=>{
+    const okQ = !q || [t.ticker,t.setup,t.strategy,t.sector,t.mistake].join(' ').toLowerCase().includes(q);
+    const okMonth = !month || (t.date||'').startsWith(month);
+    const okStatus = status==='all' || t.status===status;
+    const okResult = result==='all' || t.result===result;
+    const okStrategy = strategy==='all' || t.strategy===strategy;
+    return okQ && okMonth && okStatus && okResult && okStrategy;
+  });
+}
+
+function filteredWatchlistByGroup(group){
+  const q = document.getElementById('globalSearch').value.trim().toLowerCase();
+  return state.watchlist.filter(x=>x.group===group && (!q || [x.ticker,x.setup,x.sector].join(' ').toLowerCase().includes(q)));
+}
+
+function selectedTrade(){ return findById(state.journal, state.selectedTradeId) || state.journal[0]; }
+
+function calcWeekdayAnalysis(){ return [{day:'Thứ 3', note:'Expectancy cao nhất'},{day:'Thứ 5', note:'Win rate tốt'},{day:'Thứ 2', note:'Cần thận trọng đầu tuần'}]; }
+function calcSectorAnalysis(){ return ['Công nghệ','Chứng khoán','Hóa chất'].map(name=>({name})); }
+function calcMistakes(){ return rankCounts(state.journal.map(x=>x.mistake).filter(x=>x && x!=='Không')).slice(0,3); }
+function mostRepeatedMistake(){ return calcMistakes()[0] || 'Không'; }
+function reviewStats(){ const wins=state.journal.filter(t=>t.result==='win').length; const losses=state.journal.filter(t=>t.result==='loss').length; const net=sum(state.journal.map(t=>t.pnl||0)); const repeatMistake=mostRepeatedMistake(); const worst = state.journal.filter(t=>t.result==='loss').sort((a,b)=>(a.pnl||0)-(b.pnl||0))[0]; return {wins, losses, net, repeatMistake, worstTrade: worst ? `${worst.ticker} (${fmtMoney(worst.pnl)})` : 'Không có'}; }
+function calcChecklistPassRate(){ const arr = state.journal.map(t=> (t.tradeQuality.breakdown[0].score + t.tradeQuality.breakdown[2].score)/(30+20) * 100 ); return average(arr); }
+function behaviorAlertsHTML(){ return `<div class="mistake-list"><div class="analysis-item" style="background:var(--red-soft)">HPG · Lỗ lớn · Gồng lỗ. Thiết lập rule: chạm stop phải thoát 100%.</div><div class="analysis-item" style="background:var(--yellow-soft)">DGC · Đang mở · Tâm lý dao động. Gợi ý kích hoạt bài thở 2 phút trước khi quyết định.</div></div>`; }
+function marketGuidance(dist){ if(dist<=2) return {label:'Risk-on nhẹ', message:'1–2 ngày: Thị trường bình thường'}; if(dist===3) return {label:'Giảm Margin', message:'3 ngày: Hạ tỷ trọng margin'}; if(dist===4) return {label:'Tỷ cổ phiếu 50%', message:'4 ngày: Giữ tỷ trọng cổ phiếu khoảng 50%'}; return {label:'Canh mã dài hạn', message:'5–6 ngày trở lên: giảm tỷ trọng cổ phiếu tối đa, ưu tiên quan sát mã dài hạn'}; }
+function renderRange(key,label,value){ return `<div class="range-row"><div class="range-head"><span>${label}</span><strong id="${key}Value">${value}/10</strong></div><input class="mindset-range" data-key="${key}" type="range" min="1" max="10" value="${value}"></div>`; }
+function saveMindset(){ document.querySelectorAll('.mindset-range').forEach(r=>{ state.mindset[r.dataset.key] = +r.value; }); persist(LS_KEYS.mindset,state.mindset); renderMindsetPanels(); }
+function saveMarket(){ state.market.distDays = +document.getElementById('marketDistInput').value; state.market.sentiment = document.getElementById('marketSentimentInput').value; state.market.leaders = document.getElementById('marketLeadersInput').value.split(',').map(x=>x.trim()).filter(Boolean); state.market.notes = document.getElementById('marketNotesInput').value; persist(LS_KEYS.market,state.market); renderAll(); }
+function applyPatternSuggestion(){ const p = findById(state.patterns,val('tradePattern')); if(!p) return; document.getElementById('tradeSetup').value = p.name; document.getElementById('tradeStrategy').value = p.strategy; }
+function toggleTheme(){ state.theme = state.theme==='dark' ? 'light' : 'dark'; persist(LS_KEYS.theme,state.theme); document.body.classList.toggle('light', state.theme==='light'); document.getElementById('themeToggle').textContent = state.theme==='dark' ? 'Dark' : 'Light'; }
+function toggleBreathing(){ const btn = document.getElementById('breathBtn') || document.getElementById('mindBreathBtn'); const ring = document.getElementById('breathRing'); if(state.breathTimer){ clearInterval(state.breathTimer); state.breathTimer=null; ring?.classList.remove('active'); ring && (ring.textContent='Sẵn sàng'); btn && (btn.textContent='Bắt đầu 2 phút'); return; } const phases=[['Hít vào',4],['Giữ',7],['Thở ra',8]]; state.breathPhase=0; state.breathTick=phases[0][1]; ring?.classList.add('active'); if(btn) btn.textContent='Dừng'; const render=()=>{ const [label,_] = phases[state.breathPhase]; ring && (ring.textContent = `${label} ${state.breathTick}s`); }; render(); state.breathTimer=setInterval(()=>{ state.breathTick--; if(state.breathTick<0){ state.breathPhase=(state.breathPhase+1)%phases.length; state.breathTick=phases[state.breathPhase][1]; } render(); },1000); }
+function switchTab(id){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById('tab-'+id).classList.add('active'); document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===id)); }
+function switchSubtab(id){ document.querySelectorAll('.subtab').forEach(t=>t.classList.remove('active')); document.getElementById('subtab-'+id).classList.add('active'); document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.toggle('active', b.dataset.subtab===id)); }
+
+function load(key, fallback){ try{ const raw=localStorage.getItem(key); return raw ? JSON.parse(raw) : structuredClone(fallback);}catch{ return structuredClone(fallback);} }
+function persist(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function val(id){ return document.getElementById(id).value.trim(); }
+function lines(id){ return document.getElementById(id).value.split('\n').map(x=>x.trim()).filter(Boolean); }
+function sel(a,b){ return a===b?'selected':''; }
+function findById(arr,id){ return arr.find(x=>x.id===id); }
+function upsert(arr,obj){ const i=arr.findIndex(x=>x.id===obj.id); if(i>=0) arr[i]=obj; else arr.unshift(obj); }
+function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
+function round(v,d=2){ return Number(v.toFixed(d)); }
+function fmtNum(v){ return Number(v).toLocaleString('vi-VN'); }
+function fmtMoney(v){ return `${Number(v||0).toLocaleString('vi-VN')} VND`; }
+function average(arr){ return arr.length ? round(arr.reduce((a,b)=>a+b,0)/arr.length,1) : 0; }
+function sum(arr){ return arr.reduce((a,b)=>a+Number(b||0),0); }
+function inferMistake(result, emotion){ if(result==='loss' && emotion==='Tham lam') return 'Gồng lỗ'; if(result==='open' && emotion==='Sợ hãi') return 'Bán non (suýt)'; return 'Không'; }
+function inferExecution(result){ if(result==='loss') return 'Vi phạm kế hoạch'; if(result==='open') return 'Đang theo dõi'; return 'Đúng kế hoạch'; }
+function qualityBadgeClass(grade){ return grade.startsWith('A')?'green':grade==='B'?'yellow':'red'; }
+function gradeFromScore(score){ return tradeQualityJSON.grading.find(g=>score>=g.min) || {grade:'D'}; }
+function positionCalc(account, riskPct, entry, stop){ const riskAmount = round(account*(riskPct/100),0); const diff = Math.abs(entry-stop) || 1; const shares = Math.max(0, Math.floor(riskAmount/diff)); const capital = round(shares*entry,0); const capitalPct = account ? round((capital/account)*100,1) : 0; return {riskAmount, shares, capital, capitalPct}; }
+function rankCounts(items){ const m={}; items.forEach(x=>m[x]=(m[x]||0)+1); return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(x=>x[0]); }
+function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function renderImage(src, alt){ return src ? `<img src="${src}" alt="${alt}">` : `<span>${alt}</span>`; }
