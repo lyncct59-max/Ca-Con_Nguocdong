@@ -44,10 +44,43 @@ async function checkAdminRole(uid) {
   } catch (e) {
     console.warn('Không đọc được role từ Firestore.', e);
   }
+
   userRole = 'user';
   document.body.classList.remove('is-admin');
   return false;
 }
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  const statusEl = document.getElementById('login-status');
+
+  if (statusEl) statusEl.textContent = 'Đang đăng nhập...';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (error) {
+    console.error(error);
+    if (statusEl) statusEl.textContent = 'Lỗi đăng nhập: ' + error.message;
+    alert('Lỗi đăng nhập: ' + error.message);
+  }
+}
+
+auth.onAuthStateChanged(async (user) => {
+  const statusEl = document.getElementById('login-status');
+
+  if (user) {
+    currentUser = user;
+    await checkAdminRole(user.uid);
+    document.getElementById('login-modal').classList.add('hidden');
+    if (statusEl) statusEl.textContent = '';
+    if (typeof renderAll === 'function') renderAll();
+  } else {
+    currentUser = null;
+    document.getElementById('login-modal').classList.remove('hidden');
+    if (statusEl) statusEl.textContent = 'Dùng Email/Password đã tạo trong Firebase Authentication.';
+  }
+});
 
 async function logout() {
   await auth.signOut();
