@@ -1,4 +1,3 @@
-// firebase.js
 const firebaseConfig = {
   apiKey: "AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0",
   authDomain: "cacon-stock.firebaseapp.com",
@@ -9,7 +8,8 @@ const firebaseConfig = {
   measurementId: "G-R7YP8HFKRT"
 };
 
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
@@ -19,19 +19,36 @@ let userRole = 'user';
 
 async function checkAdminRole(uid) {
   try {
-    const docSnap = await db.collection('users').doc(uid).get();
-    if (docSnap.exists) {
-      const data = docSnap.data();
-      // Khớp chính xác với "Admin" (viết hoa chữ A) trong ảnh Firestore của bạn
-      if (data.role === 'Admin' || data.role === 'admin') {
-        userRole = 'admin';
-        document.body.classList.add('is-admin');
-        return true;
-      }
+    const ref = db.collection('users').doc(uid);
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      await ref.set({
+        email: auth.currentUser?.email || '',
+        name: (auth.currentUser?.email || 'User').split('@')[0],
+        role: 'user',
+        theme: 'dark',
+        createdAt: Date.now()
+      }, { merge: true });
+      userRole = 'user';
+      document.body.classList.remove('is-admin');
+      return false;
+    }
+
+    const roleValue = String(snap.data().role || '').toLowerCase();
+    if (roleValue === 'admin') {
+      userRole = 'admin';
+      document.body.classList.add('is-admin');
+      return true;
     }
   } catch (e) {
-    console.warn('Lỗi xác thực quyền:', e);
+    console.warn('Không đọc được role từ Firestore.', e);
   }
   userRole = 'user';
+  document.body.classList.remove('is-admin');
   return false;
+}
+
+async function logout() {
+  await auth.signOut();
 }

@@ -28,7 +28,7 @@
         <input type="password" id="login-pass" placeholder="Mật khẩu" class="input-base">
       </div>
       <button onclick="handleLogin()" class="btn-primary w-full">Vào hệ thống</button>
-      <p class="text-xs text-slate-500">Dùng Email/Password đã tạo trong Firebase Authentication.</p>
+      <div id="login-status" class="text-xs text-slate-500 min-h-[18px]">Dùng Email/Password đã tạo trong Firebase Authentication.</div>
     </div>
   </div>
 
@@ -56,14 +56,7 @@
           <button id="btn-mindset" onclick="switchTab('mindset')" class="nav-btn"><i data-lucide="brain"></i><span>Tâm lý giao dịch</span></button>
           <button id="btn-review" onclick="switchTab('review')" class="nav-btn"><i data-lucide="notebook-tabs"></i><span>Review tuần/tháng</span></button>
         </nav>
-<div class="flex items-center gap-2 flex-wrap">
-  <button onclick="exportJournalToExcel()" class="btn-secondary">
-    <i data-lucide="download"></i>Sao lưu Excel
-  </button>
-  <button onclick="toggleTheme()" class="btn-secondary">
-    <i data-lucide="moon-star"></i><span id="theme-text">Dark</span>
-  </button>
-</div>
+
         <div class="panel p-4 space-y-3">
           <div class="flex items-center gap-2 font-bold"><i data-lucide="timer-reset" class="w-4 h-4 text-emerald-500"></i>Bài thở trước phiên</div>
           <p class="text-xs text-slate-500">Hít 4s · Giữ 7s · Thở 8s</p>
@@ -90,6 +83,7 @@
             <button class="btn-secondary"><i data-lucide="bell"></i>Nhắc review</button>
             <button onclick="openTradeModal()" class="btn-primary"><i data-lucide="plus"></i>Tạo lệnh mới</button>
             <button onclick="toggleTheme()" class="btn-secondary"><i data-lucide="moon-star"></i><span id="theme-text">Dark</span></button>
+            <button onclick="logout()" class="btn-secondary"><i data-lucide="log-out"></i>Thoát</button>
           </div>
         </div>
       </header>
@@ -224,14 +218,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-<div class="flex items-center gap-2 flex-wrap">
-  <button onclick="exportJournalToExcel()" class="btn-secondary">
-    <i data-lucide="download"></i>Sao lưu Excel
-  </button>
-  <button onclick="openTradeModal()" class="btn-primary">
-    <i data-lucide="plus"></i>Tạo lệnh mới
-  </button>
-  <button onclick="toggleTheme()" class="btn-secondary">
-    <i data-lucide="moon-star"></i><span id="theme-text">Dark</span>
-  </button>
-</div>
