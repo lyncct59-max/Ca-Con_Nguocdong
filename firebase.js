@@ -1,12 +1,39 @@
-// Firebase is optional in V3. The app runs fully with localStorage demo data.
-// If you want cloud sync later, keep this config and extend app.js sync hooks.
-window.CACON_FIREBASE_ENABLED = false;
-window.CACON_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCapUGa35wIhvA2Y0NcCzUYCqLnOXEFkJc",
-  authDomain: "cacon-stock-b4cab.firebaseapp.com",
-  projectId: "cacon-stock-b4cab",
-  storageBucket: "cacon-stock-b4cab.firebasestorage.app",
-  messagingSenderId: "835007942800",
-  appId: "1:835007942800:web:2e91579fae013d56b10815",
-  measurementId: "G-RFNN6PYY8R"
+// Firebase compat boot with safe fallback to demo mode
+window.firebaseBoot = {
+  enabled: false,
+  ready: false,
+  app: null,
+  auth: null,
+  db: null,
+  storage: null,
+  error: null,
+  adminUid: 'sq6iio2bSpOoapedYnTXRmn6zNz2'
 };
+
+(function () {
+  try {
+    if (!window.firebase) throw new Error('Firebase SDK chưa tải');
+
+    // Thay config thật của bạn nếu cần
+    const firebaseConfig = {
+      apiKey: 'AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0',
+      authDomain: 'cacon-stock.firebaseapp.com',
+      projectId: 'cacon-stock',
+      storageBucket: 'cacon-stock.firebasestorage.app',
+      messagingSenderId: '481305691314',
+      appId: '1:481305691314:web:43931c5be684941225f5ab',
+      measurementId: 'G-R7YP8HFKRT'
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    window.firebaseBoot.app = firebase.app();
+    window.firebaseBoot.auth = firebase.auth();
+    window.firebaseBoot.db = firebase.firestore();
+    window.firebaseBoot.storage = firebase.storage();
+    window.firebaseBoot.enabled = true;
+    window.firebaseBoot.ready = true;
+  } catch (e) {
+    console.warn('Firebase fallback demo mode:', e.message);
+    window.firebaseBoot.error = e;
+  }
+})();
