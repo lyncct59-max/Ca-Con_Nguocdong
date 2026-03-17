@@ -1,213 +1,250 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CACON Trading Journal</title>
+  <title>CACON_STOCK V4.2 AUTH PRO</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          boxShadow: {
-            soft: '0 10px 30px rgba(2, 6, 23, 0.08)'
-          }
-        }
-      }
-    }
-  </script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-  <div id="login-modal" class="fixed inset-0 z-[300] bg-slate-950/95 backdrop-blur flex items-center justify-center p-4">
-    <div class="panel w-full max-w-md p-8 space-y-6 text-center">
-      <h2 class="text-3xl font-black tracking-tight">CACON <span class="text-emerald-500">STOCK</span></h2>
-      <div class="space-y-4">
-        <input type="email" id="login-email" placeholder="Email" class="input-base">
-        <input type="password" id="login-pass" placeholder="Mật khẩu" class="input-base">
+<body>
+  <div id="login-modal" class="auth-backdrop">
+    <div class="auth-card">
+      <h2>CACON <span>STOCK</span></h2>
+      <div class="auth-actions">
+        <input class="input" id="login-email" type="email" placeholder="Email đăng nhập" />
+        <input class="input" id="login-pass" type="password" placeholder="Mật khẩu" />
+        <button class="primary" onclick="handleLogin()">Vào hệ thống</button>
+        <button class="outline" onclick="sendResetPassword()">Gửi email reset password</button>
       </div>
-      <button onclick="handleLogin()" class="btn-primary w-full">Vào hệ thống</button>
-      <p class="text-xs text-slate-500">Dùng Email/Password đã tạo trong Firebase Authentication.</p>
+      <div class="auth-note">Dùng Email/Password đã tạo trong Firebase Authentication.</div>
     </div>
   </div>
 
-  <div class="min-h-screen flex">
-    <aside class="w-[290px] shrink-0 border-r border-slate-200 bg-white/95 dark:border-slate-800 dark:bg-slate-950/95 sticky top-0 h-screen overflow-y-auto">
-      <div class="p-6 space-y-5">
-        <div class="flex items-center gap-4">
-          <div class="h-14 w-14 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <i data-lucide="candlestick-chart" class="w-7 h-7"></i>
-          </div>
-          <div>
-            <h1 class="text-[28px] leading-8 font-black tracking-tight">CACON Trading<br>Journal</h1>
-            <p class="text-sm text-slate-500">GitHub + Firebase</p>
-          </div>
+  <div id="account-modal" class="modal-wrap hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 style="margin:0;font-size:22px">Tài khoản & bảo mật</h3>
+          <div class="small-muted">V4.2 AUTH PRO</div>
         </div>
-
-        <div id="mission-compact" class="panel p-4 space-y-3"></div>
-
-        <nav class="space-y-2 text-[15px]">
-          <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-btn active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
-          <button id="btn-watchlist" onclick="switchTab('watchlist')" class="nav-btn"><i data-lucide="scan-search"></i><span>Scan & Watchlist</span></button>
-          <button id="btn-journal" onclick="switchTab('journal')" class="nav-btn"><i data-lucide="book-open-text"></i><span>Nhật ký lệnh</span></button>
-          <button id="btn-patterns" onclick="switchTab('patterns')" class="nav-btn"><i data-lucide="shapes"></i><span>Mẫu hình</span></button>
-          <button id="btn-market" onclick="switchTab('market')" class="nav-btn"><i data-lucide="globe"></i><span>Thị trường</span></button>
-          <button id="btn-mindset" onclick="switchTab('mindset')" class="nav-btn"><i data-lucide="brain"></i><span>Tâm lý giao dịch</span></button>
-          <button id="btn-review" onclick="switchTab('review')" class="nav-btn"><i data-lucide="notebook-tabs"></i><span>Review tuần/tháng</span></button>
-        </nav>
-
-        <div class="panel p-4 space-y-3">
-          <div class="flex items-center gap-2 font-bold"><i data-lucide="timer-reset" class="w-4 h-4 text-emerald-500"></i>Bài thở trước phiên</div>
-          <p class="text-xs text-slate-500">Hít 4s · Giữ 7s · Thở 8s</p>
-          <div class="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div id="sidebar-breath-bar" class="h-full w-0 bg-emerald-500"></div></div>
-          <button onclick="switchTab('mindset')" class="btn-primary w-full">Bắt đầu 2 phút</button>
+        <button class="close-x" onclick="toggleAccountModal(false)">×</button>
+      </div>
+      <div class="account-grid">
+        <div class="account-box"><label>Tên hiển thị</label><b id="account-name">—</b></div>
+        <div class="account-box"><label>Email hiện tại</label><b id="account-email">—</b></div>
+        <div class="account-box"><label>UID</label><b id="account-uid">—</b></div>
+        <div class="account-box"><label>Vai trò</label><b id="account-role">—</b></div>
+      </div>
+      <div class="panel" style="margin-top:14px;padding:16px">
+        <h4 style="margin:0 0 8px">Đổi email đăng nhập</h4>
+        <div class="form-grid">
+          <input class="input" id="new-email" type="email" placeholder="Email mới" />
+          <input class="input" id="reauth-pass" type="password" placeholder="Nhập lại mật khẩu hiện tại" />
         </div>
+        <div class="help">Firebase thường yêu cầu xác thực lại khi đổi email.</div>
+        <div class="footer-actions">
+          <button class="outline" onclick="sendResetPassword()">Gửi mail reset password</button>
+          <button class="primary" onclick="changeEmailAddress()">Đổi email</button>
+        </div>
+      </div>
+      <div class="footer-actions">
+        <button class="danger" onclick="logout()">Đăng xuất</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge"><i data-lucide="candlestick-chart"></i></div>
+        <div>
+          <h1>CACON Trading Journal</h1>
+          <small>GitHub + Firebase • AUTH PRO</small>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <h3>Trader Mission hôm nay</h3>
+        <div class="small-muted">Ưu tiên setup đúng mẫu, tránh mua đuổi, chỉ vào lệnh khi đã qua checklist, sizing và thị trường cho phép.</div>
+        <div class="mission-grid">
+          <div class="mission-item"><span>Số ngày phân phối</span><b id="mission-distDays">2</b></div>
+          <div class="mission-item"><span>Risk mode</span><b id="mission-riskMode">Thị trường bình thường</b></div>
+          <div class="mission-item"><span>Ngành mạnh</span><b id="mission-sector">Chứng khoán · Công nghệ</b></div>
+        </div>
+      </div>
+
+      <div class="side-nav">
+        <button id="btn-dashboard" class="side-btn active" onclick="switchTab('dashboard')"><i data-lucide="layout-dashboard"></i>Dashboard</button>
+        <button id="btn-journal" class="side-btn" onclick="switchTab('journal')"><i data-lucide="book-open-text"></i>Nhật ký lệnh</button>
+        <button id="btn-trade-quality" class="side-btn" onclick="switchTab('trade-quality')"><i data-lucide="target"></i>Trade Quality</button>
+        <button id="btn-market" class="side-btn" onclick="switchTab('market')"><i data-lucide="chart-no-axes-combined"></i>Thị trường</button>
+        <button id="btn-account" class="side-btn" onclick="toggleAccountModal(true)"><i data-lucide="shield-check"></i>Tài khoản</button>
       </div>
     </aside>
 
-    <main class="flex-1 min-w-0">
-      <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
-        <div class="flex items-start justify-between gap-4 flex-wrap">
-          <div class="min-w-[320px] flex-1">
-            <blockquote class="text-3xl md:text-4xl leading-tight font-black tracking-tight text-slate-900 dark:text-white max-w-5xl">
-              “Thị trường là nơi chuyển tiền từ những người thiếu kiên nhẫn sang những người kiên nhẫn.”
-            </blockquote>
-            <p class="mt-2 text-sm text-slate-500 font-semibold">— Warren Buffett</p>
+    <main class="main">
+      <div class="topbar">
+        <div class="quote">
+          <strong>“Thị trường là nơi chuyển tiền từ những người thiếu kiên nhẫn sang những người kiên nhẫn.”</strong>
+          <span>— Warren Buffett</span>
+        </div>
+        <div class="top-actions">
+          <input class="search" id="global-search" placeholder="Tìm theo mã, setup, chiến lược..." />
+          <button class="outline" onclick="toggleAccountModal(true)"><i data-lucide="user-round"></i></button>
+          <button class="primary" onclick="toggleAccountModal(true)">Tài khoản</button>
+        </div>
+      </div>
+
+      <section id="tab-dashboard" class="tab-content">
+        <div class="grid-kpi">
+          <div class="panel kpi"><i class="icon" data-lucide="activity"></i><h4>Market Pulse</h4><div class="value" id="kpi-market">Risk-on nhẹ</div><div class="sub" id="kpi-market-sub">2 ngày phân phối, dòng chứng khoán dẫn dắt</div></div>
+          <div class="panel kpi"><i class="icon" data-lucide="bookmark-check"></i><h4>Watchlist khả dụng</h4><div class="value" id="kpi-watch">03</div><div class="sub">Cơ hội gần điểm mua hôm nay</div></div>
+          <div class="panel kpi"><i class="icon" data-lucide="target"></i><h4>Win rate</h4><div class="value" id="kpi-winrate">66.7%</div><div class="sub">2 thắng / 1 thua / 1 đang mở</div></div>
+          <div class="panel kpi"><i class="icon" data-lucide="triangle-alert"></i><h4>Risk cảnh báo</h4><div class="value" id="kpi-risk">01</div><div class="sub">1 lệnh có dấu hiệu lệch kế hoạch</div></div>
+        </div>
+
+        <div class="grid-main">
+          <div class="panel">
+            <h3>Watchlist gần điểm mua</h3>
+            <div class="desc">Trang scan nhanh để trader bắt đầu ngày giao dịch trước khi mở phần nhật ký.</div>
+            <div id="watchlist-wrap" class="watch-row"></div>
           </div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <div class="relative">
-              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input id="global-search" class="input-base pl-9 w-[280px]" placeholder="Tìm theo mã, setup, chiến lược...">
+          <div class="panel">
+            <h3>Bảng điều khiển trader thực chiến</h3>
+            <div class="desc">Đưa các thông tin trader cần nhất lên cùng một vùng: chất lượng lệnh, cảnh báo lỗi, trạng thái thị trường và bước hành động tiếp theo.</div>
+            <div class="watch-row">
+              <div class="watch-card"><div class="small-muted">Checklist pass rate</div><div style="font-size:32px;font-weight:900">81%</div><div class="small-muted">Tỷ lệ tick đủ điều kiện trước lệnh</div></div>
+              <div class="watch-card"><div class="small-muted">Sai lầm lặp lại</div><div style="font-size:32px;font-weight:900;color:#fb7185">Gồng lỗ</div><div class="small-muted">Lỗi cần ưu tiên chặn rule</div></div>
+              <div class="watch-card"><div class="small-muted">Bước tiếp theo</div><div style="font-size:32px;font-weight:900">Scan → Size</div><div class="small-muted">Không vào lệnh trước khi tính risk</div></div>
             </div>
-            <button class="btn-secondary"><i data-lucide="bell"></i>Nhắc review</button>
-            <button onclick="openTradeModal()" class="btn-primary"><i data-lucide="plus"></i>Tạo lệnh mới</button>
-            <button onclick="openAccountModal()" class="btn-secondary"><i data-lucide="user-cog"></i>Tài khoản</button>
-            <button onclick="toggleTheme()" class="btn-secondary"><i data-lucide="moon-star"></i><span id="theme-text">Dark</span></button>
           </div>
         </div>
-      </header>
+      </section>
 
-      <section class="p-6 space-y-6">
-        <div id="tab-dashboard" class="tab-content space-y-6"></div>
-        <div id="tab-watchlist" class="tab-content hidden space-y-6"></div>
-        <div id="tab-journal" class="tab-content hidden space-y-6"></div>
-        <div id="tab-patterns" class="tab-content hidden space-y-6"></div>
-        <div id="tab-market" class="tab-content hidden space-y-6"></div>
-        <div id="tab-mindset" class="tab-content hidden space-y-6"></div>
-        <div id="tab-review" class="tab-content hidden space-y-6"></div>
+      <section id="tab-journal" class="tab-content hidden">
+        <div class="panel">
+          <h3>Bảng thống kê lệnh</h3>
+          <div class="desc">Lọc nhanh theo trạng thái, kết quả, chiến lược. Nhấn vào dòng lệnh để xem chi tiết bên dưới.</div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Mã</th><th>Ngày mua</th><th>Chiến lược</th><th>Setup</th><th>Ngành</th><th>Entry</th><th>Stop</th><th>P/L %</th><th>R</th><th>Quality</th><th>Execution</th><th>Kết quả</th></tr></thead>
+              <tbody id="journal-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid-main" style="margin-top:14px">
+          <div class="panel trade-detail">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+              <div>
+                <h3 id="detail-title">Chi tiết lệnh: FPT</h3>
+                <div class="small-muted" id="detail-sub">FPT Corp · Mark Minervini · VCP · Công nghệ</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span id="detail-market-badge" class="badge green">Market tích cực</span>
+                <span id="detail-quality-badge" class="badge green">A Setup</span>
+              </div>
+            </div>
+            <div class="trade-top">
+              <div class="stat-box"><label>Entry</label><b id="detail-entry">128.5</b></div>
+              <div class="stat-box"><label>Stop</label><b id="detail-stop">123</b></div>
+              <div class="stat-box"><label>Exit</label><b id="detail-exit">137.8</b></div>
+              <div class="stat-box"><label>Quantity</label><b id="detail-qty">500</b></div>
+            </div>
+            <div class="detail-grid">
+              <div class="panel" style="padding:14px"><h3 style="font-size:16px">Biểu đồ lý thuyết</h3><div class="placeholder-image">Chart mẫu hình chuẩn</div></div>
+              <div class="panel" style="padding:14px"><h3 style="font-size:16px">Biểu đồ vào lệnh thực tế</h3><div class="placeholder-image">Ảnh chart thực chiến</div></div>
+            </div>
+            <div class="detail-grid">
+              <div class="panel" style="padding:14px"><h3 style="font-size:16px">Checklist trước lệnh</h3><div id="detail-checklist" class="check-list"></div></div>
+              <div class="panel" style="padding:14px"><h3 style="font-size:16px">Ghi chú & cảm xúc</h3><div id="detail-note" style="line-height:1.65"></div><div class="card-actions" style="margin-top:12px"><span id="detail-emotion" class="badge blue">Cảm xúc</span><span id="detail-mistake" class="badge yellow">Sai lầm</span><span id="detail-distdays" class="badge green">Số ngày phân phối</span></div></div>
+            </div>
+          </div>
+
+          <div class="watch-row">
+            <div class="panel">
+              <h3>Position Sizing</h3>
+              <div class="desc">Đơn giản hóa phần tính toán để trader thao tác cực nhanh trước khi vào lệnh.</div>
+              <div class="form-grid">
+                <input id="ps-account" class="input" type="number" value="200000000" />
+                <input id="ps-risk" class="input" type="number" value="1" step="0.1" />
+                <input id="ps-entry" class="input" type="number" value="128.5" step="0.1" />
+                <input id="ps-stop" class="input" type="number" value="123" step="0.1" />
+              </div>
+              <div class="detail-grid" style="margin-top:12px">
+                <div class="stat-box"><label>Rủi ro tối đa</label><b id="ps-risk-amount">2,000,000 VND</b></div>
+                <div class="stat-box"><label>SL tối đa</label><b id="ps-shares">363 cp</b></div>
+                <div class="stat-box"><label>Giá trị vị thế</label><b id="ps-capital">46,645,500 VND</b></div>
+                <div class="stat-box"><label>% vốn sử dụng</label><b id="ps-capital-percent">23.3%</b></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Cảnh báo hành vi</h3>
+              <div class="desc">Khối UX này giúp chặn lỗi trước khi trader lặp lại.</div>
+              <div class="watch-row">
+                <div class="watch-card" style="background:rgba(251,113,133,.08);border-color:rgba(251,113,133,.18)">HPG · Lỗ lớn · Gồng lỗ. Thiết lập rule: chạm stop phải thoát 100%.</div>
+                <div class="watch-card" style="background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.16)">DGC · Đang mở · Tâm lý dao động. Gợi ý kích hoạt bài thở 2 phút trước khi quyết định.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-trade-quality" class="tab-content hidden">
+        <div class="panel">
+          <h3>Trade Quality — Chế độ 2 tự động gợi ý</h3>
+          <div class="desc">App tự gợi ý điểm theo chiến lược, mẫu hình và bối cảnh thị trường. Bạn có thể tinh chỉnh từng tiêu chí nếu muốn.</div>
+          <div class="detail-grid">
+            <div>
+              <div class="watch-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                  <div>
+                    <div class="small-muted">Tổng điểm</div>
+                    <div id="quality-total" style="font-size:40px;font-weight:900">81</div>
+                  </div>
+                  <span id="quality-grade" class="badge green">A Setup</span>
+                </div>
+                <div class="progress" style="margin-top:12px"><span id="quality-progress" style="width:81%"></span></div>
+                <div id="quality-note" class="help">Setup tốt, mẫu hình sạch, thị trường ủng hộ. Điểm trừ nằm ở timing hơi sớm và RR chưa tối ưu.</div>
+              </div>
+              <div class="panel" style="margin-top:12px">
+                <h3 style="font-size:16px">JSON checklist hoàn chỉnh</h3>
+                <textarea id="quality-json" class="textarea"></textarea>
+              </div>
+            </div>
+            <div class="quality-groups" id="quality-groups"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-market" class="tab-content hidden">
+        <div class="grid-main">
+          <div class="panel">
+            <h3>Thị trường tổng quan</h3>
+            <div class="desc">Theo dõi số ngày phân phối, tâm lý và nhóm dẫn dắt.</div>
+            <div class="detail-grid">
+              <div class="stat-box"><label>Số ngày phân phối</label><b id="market-distdays-full">2</b></div>
+              <div class="stat-box"><label>Tâm lý thị trường</label><b id="market-sentiment">Tích cực</b></div>
+            </div>
+            <div class="watch-card" style="margin-top:12px">
+              <div class="small-muted">Ngành dẫn dắt</div>
+              <div id="market-sectors" class="card-actions" style="margin-top:10px"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Nguồn thông tin thị trường</h3>
+            <div class="desc">Link lấy tin và dữ liệu từ các nguồn quen thuộc.</div>
+            <div class="watch-row">
+              <div class="watch-card"><b>CafeF</b><div class="small-muted">Tin tức / dữ liệu • Vĩ mô - doanh nghiệp</div></div>
+              <div class="watch-card"><b>Vietstock</b><div class="small-muted">Tin tức / phân tích • Báo cáo - ngành</div></div>
+              <div class="watch-card"><b>FireAnt</b><div class="small-muted">Chart / theo dõi thị trường • Bảng giá - dòng tiền</div></div>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
-  </div>
-
-  <div id="trade-modal" class="modal-backdrop hidden">
-    <div class="modal-box max-w-5xl">
-      <div class="flex items-center justify-between mb-5">
-        <h3 id="trade-modal-title" class="text-2xl font-black">Tạo lệnh mới</h3>
-        <button onclick="closeTradeModal()" class="icon-btn"><i data-lucide="x"></i></button>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-3">
-            <input id="trade-symbol" class="input-base" placeholder="Mã cổ phiếu">
-            <input id="trade-date" type="date" class="input-base">
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <select id="trade-strategy" class="input-base"></select>
-            <select id="trade-pattern-link" class="input-base"></select>
-          </div>
-          <div class="grid grid-cols-3 gap-3">
-            <input id="trade-entry" type="number" class="input-base" placeholder="Entry">
-            <input id="trade-stop" type="number" class="input-base" placeholder="Stop">
-            <input id="trade-exit" type="number" class="input-base" placeholder="Exit (nếu có)">
-          </div>
-          <div class="grid grid-cols-3 gap-3">
-            <input id="trade-qty" type="number" class="input-base" placeholder="Quantity">
-            <select id="trade-status" class="input-base">
-              <option value="Đang mở">Đang mở</option>
-              <option value="Đã đóng">Đã đóng</option>
-            </select>
-            <select id="trade-result" class="input-base">
-              <option value="Đang mở">Đang mở</option>
-              <option value="Lãi">Lãi</option>
-              <option value="Lỗ">Lỗ</option>
-              <option value="Hòa vốn">Hòa vốn</option>
-            </select>
-          </div>
-          <div class="grid grid-cols-3 gap-3">
-            <select id="trade-sector" class="input-base"></select>
-            <select id="trade-emotion" class="input-base"></select>
-            <select id="trade-mistake" class="input-base"></select>
-          </div>
-          <textarea id="trade-note" class="input-base min-h-[120px]" placeholder="Ghi chú diễn biến thị trường, lý do vào lệnh, cảm xúc..."></textarea>
-        </div>
-        <div class="space-y-4">
-          <div class="panel p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="font-black">Trade Quality — Chế độ 2: tự động gợi ý</h4>
-              <span id="trade-quality-badge" class="badge badge-neutral">Chưa chấm</span>
-            </div>
-            <div id="trade-quality-summary" class="text-sm text-slate-500 mb-4">Chọn mẫu hình để hệ thống tự gợi ý điểm.</div>
-            <div id="trade-quality-list" class="space-y-3 max-h-[320px] overflow-y-auto pr-2"></div>
-          </div>
-          <div class="panel p-4">
-            <h4 class="font-black mb-3">Checklist từ mẫu hình</h4>
-            <div id="trade-pattern-checklist" class="space-y-2 text-sm"></div>
-          </div>
-        </div>
-      </div>
-      <div class="flex justify-end gap-3 mt-6">
-        <button onclick="closeTradeModal()" class="btn-secondary">Hủy</button>
-        <button onclick="saveTrade()" class="btn-primary">Lưu lệnh</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="pattern-modal" class="modal-backdrop hidden">
-    <div class="modal-box max-w-5xl">
-      <div class="flex items-center justify-between mb-5">
-        <h3 id="pattern-modal-title" class="text-2xl font-black">Tạo mẫu hình</h3>
-        <button onclick="closePatternModal()" class="icon-btn"><i data-lucide="x"></i></button>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-3">
-            <input id="pattern-name" class="input-base" placeholder="Tên mẫu hình">
-            <select id="pattern-strategy" class="input-base"></select>
-          </div>
-          <textarea id="pattern-description" class="input-base min-h-[100px]" placeholder="Mô tả mẫu hình"></textarea>
-          <div>
-            <label class="text-sm font-bold mb-2 block">Ảnh minh họa</label>
-            <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
-              <input id="pattern-image-url" class="input-base" placeholder="URL ảnh hoặc để trống nếu upload từ máy">
-              <input id="pattern-image-file" type="file" accept="image/*" class="input-base">
-            </div>
-            <div class="mt-3 pattern-preview-wrap"><img id="pattern-image-preview" class="pattern-preview hidden" alt="preview"></div>
-          </div>
-        </div>
-        <div class="space-y-4">
-          <div class="panel p-4">
-            <div class="flex items-center justify-between mb-3"><h4 class="font-black">Điều kiện nền</h4><button onclick="addPatternCondition('conditions')" class="btn-secondary !py-2">+ Thêm</button></div>
-            <div id="pattern-conditions" class="space-y-2"></div>
-          </div>
-          <div class="panel p-4">
-            <div class="flex items-center justify-between mb-3"><h4 class="font-black">Điều kiện kích hoạt / trước khi vào lệnh</h4><button onclick="addPatternCondition('triggers')" class="btn-secondary !py-2">+ Thêm</button></div>
-            <div id="pattern-triggers" class="space-y-2"></div>
-          </div>
-        </div>
-      </div>
-      <div class="flex justify-end gap-3 mt-6">
-        <button onclick="closePatternModal()" class="btn-secondary">Hủy</button>
-        <button onclick="savePattern()" class="btn-primary">Lưu mẫu hình</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="image-lightbox" class="modal-backdrop hidden" onclick="closeLightbox()">
-    <div class="max-w-6xl w-[90vw]" onclick="event.stopPropagation()">
-      <div class="flex justify-end mb-3"><button class="icon-btn bg-white/10 text-white" onclick="closeLightbox()"><i data-lucide="x"></i></button></div>
-      <img id="lightbox-img" class="w-full max-h-[85vh] object-contain rounded-3xl bg-slate-900" alt="lightbox">
-    </div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
