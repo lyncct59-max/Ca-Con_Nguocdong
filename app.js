@@ -47,6 +47,34 @@ function fmtMoney(v) { return Number(v || 0).toLocaleString('vi-VN') + 'đ'; }
 function fmtPct(v) { return `${Number(v || 0).toFixed(1)}%`; }
 function parseLines(t) { return (t || '').split('\n').map(x => x.trim()).filter(Boolean); }
 
+function setLoginMessage(msg, type = 'error') {
+  const el = $('#loginMsg');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = type === 'success' ? '#34d399' : (type === 'warn' ? '#fbbf24' : '#fca5a5');
+}
+
+function renderAuthDebug(extra = {}) {
+  const box = $('#authDebug');
+  if (!box) return;
+  const boot = window.firebaseBoot || {};
+  const payload = {
+    firebaseReady: !!boot.ready,
+    firebaseEnabled: !!boot.enabled,
+    hasAuth: !!boot.auth,
+    hasDb: !!boot.db,
+    hasStorage: !!boot.storage,
+    adminUid: boot.adminUid || null,
+    currentUid: session?.uid || null,
+    currentEmail: session?.email || null,
+    role: session?.role || null,
+    mode: session?.isDemo ? 'demo' : 'firebase',
+    bootError: boot.error ? (boot.error.message || String(boot.error)) : null,
+    ...extra
+  };
+  box.textContent = JSON.stringify(payload, null, 2);
+}
+
 const defaultData = {
   account: { energy: 7, calm: 8, fomo: 4, confidence: 6, theme: 'dark' },
   market: { distDays: 2, sentiment: 'Tích cực', leaders: 'Chứng khoán, Công nghệ, Bán lẻ', riskMode: 'Risk-on nhẹ', marketTrend: 'Uptrend' },
@@ -176,7 +204,7 @@ window.switchTab = function(tab) {
 function bindCommon() {
   $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
   $('#themeBtn').addEventListener('click', toggleTheme);
-  $('#demoBtn').addEventListener('click', () => { $('#loginModal').classList.add('hidden'); session = { isDemo: true, loggedIn: false, uid: 'demo-user', email: 'demo@local', role: 'demo' }; renderAll(); });
+  $('#demoBtn').addEventListener('click', () => { $('#loginModal').classList.add('hidden'); session = { isDemo: true, loggedIn: false, uid: 'demo-user', email: 'demo@local', role: 'demo' }; setLoginMessage('Đang vào demo mode...', 'success'); renderAuthDebug({ action: 'demo_mode' }); renderAll(); });
   $('#loginBtn').addEventListener('click', handleLogin);
   $$('.modal [data-close]').forEach(btn => btn.addEventListener('click', () => btn.closest('.modal').classList.add('hidden')));
   $('#openWatchModalBtn').addEventListener('click', () => openWatchModal());
@@ -206,14 +234,20 @@ function bindCommon() {
 }
 
 async function handleLogin() {
-  if (!window.firebaseBoot.ready || !window.firebaseBoot.auth) { $('#loginMsg').textContent = 'Firebase chưa sẵn sàng. Hãy dùng chế độ demo.'; return; }
+  const boot = window.firebaseBoot || {};
+  if (!boot.ready || !boot.auth) { setLoginMessage('Firebase chưa sẵn sàng. Hãy dùng chế độ demo.', 'warn'); renderAuthDebug({ action: 'login_blocked' }); return; }
   const email = $('#loginEmail').value.trim();
   const pass = $('#loginPass').value.trim();
-  $('#loginMsg').textContent = '';
+  if (!email || !pass) { setLoginMessage('Hãy nhập đầy đủ email và mật khẩu.', 'warn'); renderAuthDebug({ action: 'missing_credentials' }); return; }
+  setLoginMessage('Đang đăng nhập...', 'success');
+  renderAuthDebug({ action: 'login_attempt', email });
   try {
-    await window.firebaseBoot.auth.signInWithEmailAndPassword(email, pass);
+    await boot.auth.signInWithEmailAndPassword(email, pass);
+    setLoginMessage('Đăng nhập thành công, đang đồng bộ hồ sơ...', 'success');
   } catch (e) {
-    $('#loginMsg').textContent = e.message || 'Không đăng nhập được.';
+    console.error('Login error:', e);
+    setLoginMessage(e.message || 'Không đăng nhập được.');
+    renderAuthDebug({ action: 'login_error', code: e.code || null, message: e.message || String(e), email });
   }
 }
 
@@ -227,6 +261,7 @@ async function ensureUserProfile(user) {
   const fresh = await ref.get();
   const profile = fresh.data() || {};
   session = { isDemo: false, loggedIn: true, uid: user.uid, email: user.email || '', role: profile.role || 'user' };
+  renderAuthDebug({ action: 'profile_loaded', profileExists: fresh.exists, profileRole: profile.role || 'user' });
   await hydrateFirestoreData();
   $('#loginModal').classList.add('hidden');
   renderAll();
@@ -666,10 +701,18 @@ function init() {
   bindCommon();
   renderAll();
   lucide.createIcons();
+  renderAuthDebug({ action: 'init' });
   if (window.firebaseBoot.ready && window.firebaseBoot.auth) {
     window.firebaseBoot.auth.onAuthStateChanged(async user => {
-      if (user) await ensureUserProfile(user);
+      if (user) {
+        renderAuthDebug({ action: 'auth_state_signed_in', uid: user.uid, email: user.email || '' });
+        await ensureUserProfile(user);
+      } else {
+        renderAuthDebug({ action: 'auth_state_signed_out' });
+      }
     });
+  } else {
+    renderAuthDebug({ action: 'firebase_not_ready' });
   }
 }
 
