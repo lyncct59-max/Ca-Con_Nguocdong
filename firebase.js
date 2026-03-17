@@ -1,54 +1,32 @@
-// ===== FAKE FIREBASE (TEST MODE) =====
-
-let currentUser = {
-  uid: "demo_user_001",
-  email: "demo@cacon.vn"
+const firebaseConfig = {
+  apiKey: "AIzaSyCapUGa35wIhvA2Y0NcCzUYCqLnOXEFkJc",
+  authDomain: "cacon-stock-b4cab.firebaseapp.com",
+  projectId: "cacon-stock-b4cab",
+  storageBucket: "cacon-stock-b4cab.firebasestorage.app",
+  messagingSenderId: "835007942800",
+  appId: "1:835007942800:web:2e91579fae013d56b10815",
+  measurementId: "G-RFNN6PYY8R"
 };
 
-let userRole = "admin";
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-// Fake DB (localStorage)
-const db = {
-  collection: (name) => ({
-    get: async () => {
-      const data = JSON.parse(localStorage.getItem(name) || "[]");
-      return {
-        docs: data.map(d => ({ id: d.id, data: () => d }))
-      };
-    },
-    add: async (data) => {
-      const arr = JSON.parse(localStorage.getItem(name) || "[]");
-      data.id = Date.now().toString();
-      arr.push(data);
-      localStorage.setItem(name, JSON.stringify(arr));
-    },
-    where: () => ({
-      orderBy: () => ({
-        onSnapshot: (cb) => {
-          const data = JSON.parse(localStorage.getItem(name) || "[]");
-          cb({
-            docs: data.map(d => ({ data: () => d }))
-          });
-        }
-      })
-    }),
-    doc: () => ({
-      get: async () => ({ exists: true, data: () => ({ role: "admin" }) }),
-      set: async () => {}
-    })
-  })
-};
+let currentUser = null;
+let userRole = 'user';
 
-// Fake auth
-const auth = {
-  onAuthStateChanged: (cb) => {
-    cb(currentUser);
+async function checkAdminRole(uid) {
+  try {
+    const docSnap = await db.collection('users').doc(uid).get();
+    if (docSnap.exists && docSnap.data().role === 'admin') {
+      userRole = 'admin';
+      document.body.classList.add('is-admin');
+      return true;
+    }
+  } catch (e) {
+    console.warn('Không đọc được role từ Firestore, dùng chế độ local demo.', e);
   }
-};
-
-// Fake storage
-const storage = {};
-
-async function checkAdminRole() {
-  userRole = "admin";
+  userRole = 'admin';
+  return true;
 }
