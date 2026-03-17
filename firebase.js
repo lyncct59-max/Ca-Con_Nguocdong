@@ -1,11 +1,13 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyCapUGa35wIhvA2Y0NcCzUYCqLnOXEFkJc",
-  authDomain: "cacon-stock-b4cab.firebaseapp.com",
-  projectId: "cacon-stock-b4cab",
-  storageBucket: "cacon-stock-b4cab.firebasestorage.app",
-  messagingSenderId: "835007942800",
-  appId: "1:835007942800:web:2e91579fae013d56b10815",
-  measurementId: "G-RFNN6PYY8R"
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0",
+  authDomain: "cacon-stock.firebaseapp.com",
+  projectId: "cacon-stock",
+  storageBucket: "cacon-stock.firebasestorage.app",
+  messagingSenderId: "481305691314",
+  appId: "1:481305691314:web:43931c5be684941225f5ab",
+  measurementId: "G-R7YP8HFKRT"
 };
 
 firebase.initializeApp(firebaseConfig);
