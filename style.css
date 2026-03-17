@@ -1,82 +1,29 @@
-:root {
-  --bg: #f8fafc;
-  --panel: #ffffff;
-  --line: #e2e8f0;
-  --text: #0f172a;
-  --muted: #64748b;
-  --soft: #f1f5f9;
-  --primary: #10b981;
-  --warning: #facc15;
-  --danger: #fb7185;
+body{
+  background:#020617;
+  color:white;
+  font-family:sans-serif;
 }
-html.dark {
-  --bg: #020617;
-  --panel: #0f172a;
-  --line: #1e293b;
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --soft: #0b1220;
+.quote{
+  text-align:center;
+  font-weight:900;
+  margin:20px;
 }
-body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  box-shadow: 0 8px 30px rgba(2,6,23,0.05);
+.panel{
+  background:#0f172a;
+  padding:15px;
+  margin:10px;
+  border-radius:10px;
 }
-.input-base {
-  width: 100%;
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
-  border: 1px solid var(--line);
-  color: var(--text);
-  border-radius: 16px;
-  padding: 14px 16px;
-  outline: none;
+.card{
+  background:#1e293b;
+  padding:10px;
+  margin:10px;
+  border-radius:8px;
 }
-.input-base:focus { border-color: #34d399; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
-.btn-primary, .btn-secondary, .icon-btn, .nav-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  border-radius: 16px; font-weight: 800; transition: .2s ease; white-space: nowrap;
-}
-.btn-primary { background: #10b981; color: white; padding: 12px 18px; }
-.btn-primary:hover { background: #059669; }
-.btn-secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 12px 16px; }
-.btn-secondary:hover { background: var(--soft); }
-.icon-btn { width: 42px; height: 42px; background: var(--soft); color: var(--text); }
-.icon-btn:hover { filter: brightness(0.98); }
-.nav-btn {
-  width: 100%; justify-content: flex-start; padding: 14px 16px; color: var(--muted); border: 1px solid transparent;
-}
-.nav-btn i { width: 18px; height: 18px; }
-.nav-btn.active { background: rgba(16,185,129,0.12); color: #059669; border-color: rgba(16,185,129,0.18); }
-.badge { display:inline-flex; align-items:center; gap:.35rem; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:800; }
-.badge-green { background:#dcfce7; color:#166534; }
-.badge-yellow { background:#fef9c3; color:#854d0e; }
-.badge-red { background:#ffe4e6; color:#be123c; }
-.badge-blue { background:#dbeafe; color:#1d4ed8; }
-.badge-neutral { background:#e2e8f0; color:#334155; }
-html.dark .badge-green { background: rgba(16,185,129,.16); color:#6ee7b7; }
-html.dark .badge-yellow { background: rgba(250,204,21,.16); color:#fde68a; }
-html.dark .badge-red { background: rgba(251,113,133,.14); color:#fda4af; }
-html.dark .badge-blue { background: rgba(59,130,246,.15); color:#93c5fd; }
-html.dark .badge-neutral { background:#1e293b; color:#cbd5e1; }
-.kpi-card { min-height: 132px; }
-.soft-box { background: var(--soft); border-radius: 18px; border:1px solid var(--line); }
-.table-wrap { overflow:auto; }
-.table-base { width:100%; min-width: 1280px; font-size:14px; }
-.table-base th { text-align:left; padding:16px; color:var(--muted); font-size:12px; text-transform:uppercase; border-bottom:1px solid var(--line); }
-.table-base td { padding:16px; border-bottom:1px solid var(--line); }
-.table-base tr:hover { background: color-mix(in srgb, var(--soft) 65%, transparent); cursor:pointer; }
-.metric-bar { height: 12px; border-radius: 999px; overflow:hidden; background: var(--soft); }
-.metric-fill { height:100%; background:#0f172a; }
-html.dark .metric-fill { background:#cbd5e1; }
-.modal-backdrop { position: fixed; inset: 0; z-index: 400; background: rgba(2,6,23,.7); backdrop-filter: blur(6px); display:flex; align-items:center; justify-content:center; padding: 24px; }
-.modal-box { width: min(1200px, 95vw); max-height: 92vh; overflow:auto; background: var(--bg); color: var(--text); border:1px solid var(--line); border-radius: 32px; padding: 28px; }
-.pattern-preview-wrap { min-height: 220px; border:1px dashed var(--line); border-radius:20px; background: var(--soft); display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.pattern-preview { max-height: 260px; width:100%; object-fit: contain; cursor: zoom-in; }
-.quality-row { border:1px solid var(--line); border-radius:16px; padding:12px; background: var(--soft); }
-.quality-grid { display:grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items:center; }
-@media (max-width: 900px){
-  aside { display:none; }
-  .modal-box { padding:20px; border-radius:24px; }
+#login-modal{
+  position:fixed;
+  top:30%;
+  left:40%;
+  background:#111;
+  padding:20px;
 }
