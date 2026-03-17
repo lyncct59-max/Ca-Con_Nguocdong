@@ -1,8 +1,47 @@
+// app.js (Đoạn đầu file)
 window.onload = () => {
   lucide.createIcons();
   initApp();
 };
 
+async function initApp() {
+  // 1. Tải theme và cấu hình cơ bản từ localStorage
+  appState = loadState(); 
+  applyTheme(appState.theme);
+  seedSelectors();
+  bindEvents();
+
+  // 2. Lắng nghe trạng thái đăng nhập
+  auth.onAuthStateChanged(async (user) => {
+    const loginModal = document.getElementById('login-modal');
+    if (user) {
+      currentUser = user;
+      loginModal.classList.add('hidden'); // Ẩn ngay màn hình đăng nhập
+      
+      await checkAdminRole(user.uid);
+      startRealtimeSync(); // Bắt đầu tải dữ liệu từ Firestore
+      renderAll();
+    } else {
+      loginModal.classList.remove('hidden');
+    }
+  });
+}
+
+// Bổ sung hàm xuất Excel vào app.js
+function exportJournalToExcel() {
+  if (!appState.trades || appState.trades.length === 0) {
+    alert("Chưa có dữ liệu để xuất.");
+    return;
+  }
+  const headers = ["Mã", "Ngày", "Chiến lược", "Giá vào", "Dừng lỗ", "Giá ra", "Kết quả"];
+  const rows = appState.trades.map(t => [t.symbol, t.date, t.strategy, t.entry, t.stop, t.exit || "", t.result]);
+  let csv = "\uFEFF" + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `CACON_Backup_${new Date().toISOString().slice(0,10)}.csv`;
+  link.click();
+}
 const STORAGE_KEY = 'cacon-stock-v4-state';
 let appState = { trades: [], patterns: [], watchlist: [], market: {}, mindset: {}, review: {} };
 let editingTradeId = null;

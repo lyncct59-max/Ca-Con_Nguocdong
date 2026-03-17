@@ -1,3 +1,4 @@
+// firebase.js
 const firebaseConfig = {
   apiKey: "AIzaSyBCOqoxavILvWp8uyxJQDvlJ-wmeLChgv0",
   authDomain: "cacon-stock.firebaseapp.com",
@@ -21,16 +22,16 @@ async function checkAdminRole(uid) {
     const docSnap = await db.collection('users').doc(uid).get();
     if (docSnap.exists) {
       const data = docSnap.data();
-      // Khớp với giá trị "Admin" viết hoa trong ảnh Firestore của bạn
+      // Chỉnh sửa: Chấp nhận cả "Admin" viết hoa từ ảnh Firestore của bạn
       if (data.role === 'Admin' || data.role === 'admin') {
         userRole = 'admin';
         document.body.classList.add('is-admin');
         return true;
       }
     }
+    console.warn("Không tìm thấy role Admin cho user này.");
   } catch (e) {
-    console.warn('Lỗi đọc Role, đang dùng chế độ demo.', e);
+    console.error("Lỗi xác thực quyền:", e);
   }
-  userRole = 'user';
   return false;
 }
