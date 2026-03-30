@@ -1,10 +1,14 @@
-window.SUPABASE_URL = "https://unlrlmxlngxhstbnrzax.supabase.co";
-window.SUPABASE_ANON_KEY = "sb_publishable_DB9DIVS7RWnE4rEfY4GaHg_Kwc8rhya";
-window.supabaseClient = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase)
-  ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
-  : null;
 
-if (!window.supabaseClient) {
-  console.error('Supabase chưa được khởi tạo. Kiểm tra supabase.js và SDK.');
-}
+window.SUPABASE_URL = "YOUR_SUPABASE_URL";
+window.SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
+(function () {
+  if (!window.supabase) {
+    console.error("Supabase SDK chưa được nạp");
+    return;
+  }
+  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || window.SUPABASE_URL.includes("YOUR_")) {
+    console.warn("Chưa điền SUPABASE_URL / SUPABASE_ANON_KEY trong supabase.js");
+  }
+  window.supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+})();
