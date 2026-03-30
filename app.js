@@ -833,10 +833,14 @@ const App = {
   },
 
   updateMission() {
-    document.getElementById('mission-dist').textContent = this.data.market.distDays;
-    document.getElementById('mission-risk').textContent = this.marketStateLabel().title;
-    document.getElementById('mission-sectors').textContent = this.leadingSectorText();
-    document.getElementById('sidebar-breath-bar').style.width = `${Math.max(15, this.data.mindset.calm * 10)}%`;
+    const missionDist = document.getElementById('mission-dist');
+    const missionRisk = document.getElementById('mission-risk');
+    const missionSectors = document.getElementById('mission-sectors');
+    const sidebarBreathBar = document.getElementById('sidebar-breath-bar');
+    if (missionDist) missionDist.textContent = this.data.market.distDays;
+    if (missionRisk) missionRisk.textContent = this.marketStateLabel().title;
+    if (missionSectors) missionSectors.textContent = this.leadingSectorText();
+    if (sidebarBreathBar) sidebarBreathBar.style.width = `${Math.max(15, this.data.mindset.calm * 10)}%`;
   },
 
   prefillTradeFromWatchlist(id) {
@@ -1129,3 +1133,12 @@ const AuthUI = {
 window.App = App;
 window.AuthUI = AuthUI;
 window.addEventListener('DOMContentLoaded', () => App.init());
+
+
+window.addEventListener('error', (e) => {
+  const box = document.getElementById('auth-message');
+  if (box && e?.message) {
+    box.textContent = 'Lỗi giao diện: ' + e.message;
+    box.classList.add('error');
+  }
+});
