@@ -1,215 +1,473 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CaCon Stock Pro - Supabase</title>
+  <title>Cacon Trader Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
             brand: {
-              50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',
-              500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b'
+              50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',
+              500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534',900:'#14532d'
             }
+          },
+          boxShadow: {
+            soft: '0 8px 30px rgba(15, 23, 42, 0.08)'
           }
         }
       }
-    };
+    }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen overflow-hidden">
-  <div class="global-bg">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-  </div>
+<body class="bg-slate-50 text-slate-900">
+  <div id="toast" class="hidden fixed top-4 right-4 z-[100] rounded-2xl border px-4 py-3 text-sm font-medium shadow-soft"></div>
 
-  <div id="app-error" class="fixed top-3 left-1/2 -translate-x-1/2 z-[500] hidden px-4 py-3 rounded-xl bg-rose-500/15 border border-rose-400/30 text-rose-100 text-sm max-w-3xl"></div>
-
-  <div id="login-modal" class="fixed inset-0 z-[300] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="glass-panel p-8 w-full max-w-md space-y-6 text-center">
-      <div>
-        <h1 class="text-2xl font-black text-white uppercase font-mono">CaCon <span class="text-emerald-400">Stock</span></h1>
-        <p class="text-slate-400 text-sm mt-2">Đăng nhập bằng Supabase</p>
+  <section id="auth-screen" class="min-h-screen flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-soft">
+      <div class="mb-6">
+        <div class="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Cacon Stock</div>
+        <h1 class="mt-2 text-3xl font-black">Trader Pro</h1>
+        <p class="mt-2 text-sm text-slate-500">Đăng nhập để quản trị hệ thống giao dịch, nhật ký, watchlist và hiệu suất đầu tư.</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-2">
-        <button id="auth-login-tab" class="auth-tab auth-tab-active" type="button">Đăng nhập</button>
-        <button id="auth-register-tab" class="auth-tab" type="button">Tạo tài khoản</button>
+      <div class="mb-5 grid grid-cols-2 gap-2">
+        <button id="tab-login" class="auth-tab active" type="button">Đăng nhập</button>
+        <button id="tab-register" class="auth-tab" type="button">Tạo tài khoản</button>
       </div>
 
       <div class="space-y-4">
-        <div id="register-name-wrap" class="hidden">
-          <input type="text" id="register-name" placeholder="Họ tên" class="w-full p-4 bg-black/40 rounded-xl border border-white/10 outline-none text-white">
+        <div id="wrap-name" class="hidden">
+          <label class="field-label">Họ tên</label>
+          <input id="auth-name" class="field-input" placeholder="Nguyễn Văn A">
         </div>
-        <input type="email" id="login-email" placeholder="Email" class="w-full p-4 bg-black/40 rounded-xl border border-white/10 outline-none text-white">
-        <input type="password" id="login-pass" placeholder="Mật khẩu" class="w-full p-4 bg-black/40 rounded-xl border border-white/10 outline-none text-white">
+        <div>
+          <label class="field-label">Email</label>
+          <input id="auth-email" type="email" class="field-input" placeholder="ban@email.com">
+        </div>
+        <div>
+          <label class="field-label">Mật khẩu</label>
+          <input id="auth-password" type="password" class="field-input" placeholder="Tối thiểu 6 ký tự">
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3">
-        <button id="auth-submit-btn" class="w-full py-4 bg-emerald-600 rounded-xl font-black text-white uppercase shadow-lg hover:bg-emerald-500 transition">Vào hệ thống</button>
-        <button id="auth-reset-btn" class="w-full py-4 bg-white/10 rounded-xl font-black text-white uppercase hover:bg-white/15 transition">Quên mật khẩu</button>
+      <div class="mt-6 grid gap-3">
+        <button id="auth-submit" class="btn btn-primary" type="button">Vào hệ thống</button>
+        <button id="auth-reset" class="btn btn-secondary" type="button">Quên mật khẩu</button>
       </div>
 
-      <p id="auth-status" class="text-xs text-slate-400 min-h-[18px]"></p>
+      <div id="auth-message" class="mt-4 min-h-[20px] text-sm text-slate-500"></div>
     </div>
-  </div>
+  </section>
 
-  <div class="flex flex-col h-screen">
-    <header class="h-16 border-b border-white/10 bg-black/20 backdrop-blur-lg flex items-center justify-between px-6 shrink-0 z-50">
-      <div class="flex items-center gap-4">
-        <h1 class="text-xl font-black text-white font-mono uppercase">CaCon <span class="text-emerald-400">Stock</span></h1>
-        <div class="hidden md:block text-xs text-slate-400" id="user-email-label">Chưa đăng nhập</div>
-      </div>
-      <nav class="flex gap-4">
-        <button type="button" data-tab-btn="dashboard" class="nav-btn active text-[10px] font-black uppercase">Dashboard</button>
-        <button type="button" data-tab-btn="market" class="nav-btn text-[10px] font-black uppercase">Thị Trường</button>
-        <button type="button" data-tab-btn="journal" class="nav-btn text-[10px] font-black uppercase">Nhật Ký</button>
-      </nav>
-      <div class="flex items-center gap-2">
-        <span id="sync-status" class="hidden md:block text-xs text-slate-400">Chưa đăng nhập</span>
-        <button id="logout-btn" type="button" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase text-white">Thoát</button>
+  <section id="app-shell" class="hidden min-h-screen">
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-4">
+        <div>
+          <div class="text-xs font-black uppercase tracking-[0.2em] text-brand-700">Cacon Stock</div>
+          <div class="text-3xl font-black leading-tight">Trading Journal</div>
+          <div class="text-sm text-slate-500">Hệ thống giao dịch thực chiến: theo dõi setup, quản trị rủi ro và tối ưu hiệu suất.</div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="hidden lg:block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+            <div id="user-name" class="text-sm font-bold">—</div>
+            <div id="user-email" class="text-xs text-slate-500">—</div>
+          </div>
+          <button id="logout-btn" class="btn btn-secondary" type="button">Đăng xuất</button>
+        </div>
       </div>
     </header>
 
-    <main class="flex-1 overflow-y-auto p-6 space-y-8 z-10 custom-scrollbar pb-24">
-      <section id="tab-dashboard" class="tab-content space-y-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div class="glass-panel p-6 border-l-4 border-emerald-500">
-            <p class="text-[10px] text-slate-400 font-bold uppercase">Tổng PnL</p>
-            <h2 class="text-2xl font-mono font-black mt-1" id="dash-pnl">0đ</h2>
-          </div>
-          <div class="glass-panel p-6 border-l-4 border-blue-500">
-            <p class="text-[10px] text-slate-400 font-bold uppercase">Số lệnh</p>
-            <h2 class="text-2xl font-mono font-black mt-1" id="dash-count">0</h2>
-          </div>
-          <div class="glass-panel p-6 border-l-4 border-amber-500">
-            <p class="text-[10px] text-slate-400 font-bold uppercase">Đang mở</p>
-            <h2 class="text-2xl font-mono font-black mt-1" id="dash-open">0</h2>
-          </div>
-          <div class="glass-panel p-6 border-l-4 border-rose-500">
-            <p class="text-[10px] text-slate-400 font-bold uppercase">Win rate</p>
-            <h2 class="text-2xl font-mono font-black mt-1" id="dash-winrate">0%</h2>
+    <div class="mx-auto grid max-w-[1600px] grid-cols-1 gap-6 px-4 py-6 xl:grid-cols-[260px_1fr]">
+      <aside class="h-fit rounded-3xl border border-slate-200 bg-white p-4 shadow-soft xl:sticky xl:top-24">
+        <div class="mb-4 text-xs font-black uppercase tracking-[0.2em] text-slate-500">Danh mục</div>
+        <nav class="grid gap-2">
+          <button type="button" class="side-btn active" data-screen="dashboard">Dashboard</button>
+          <button type="button" class="side-btn" data-screen="watchlist">Scan & Watchlist</button>
+          <button type="button" class="side-btn" data-screen="journal">Nhật ký lệnh</button>
+          <button type="button" class="side-btn" data-screen="playbook">Setup Playbook</button>
+          <button type="button" class="side-btn" data-screen="sizing">Position Sizing</button>
+          <button type="button" class="side-btn" data-screen="market">Thị trường</button>
+          <button type="button" class="side-btn" data-screen="psychology">Tâm lý giao dịch</button>
+          <button type="button" class="side-btn" data-screen="review">Review & Hậu kiểm</button>
+        </nav>
+
+        <div class="mt-6 rounded-2xl bg-slate-50 p-4">
+          <div class="mb-3 text-xs font-black uppercase tracking-[0.2em] text-slate-500">Tình trạng hệ thống</div>
+          <div class="stack-sm">
+            <div class="mini-row"><span>Đồng bộ</span><strong id="sync-status">—</strong></div>
+            <div class="mini-row"><span>Quyền</span><strong id="role-label">user</strong></div>
+            <div class="mini-row"><span>Market mode</span><strong id="market-mode-side">Bình thường</strong></div>
           </div>
         </div>
+      </aside>
 
-        <div class="grid lg:grid-cols-2 gap-6">
-          <div class="glass-panel p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-black uppercase text-emerald-400">Tổng quan giao dịch</h3>
+      <main class="space-y-6">
+        <section data-screen="dashboard" class="screen">
+          <div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-6">
+            <div class="kpi-card">
+              <div class="kpi-label">Tổng PnL</div>
+              <div id="kpi-pnl" class="kpi-value">0đ</div>
+              <div class="kpi-sub" id="kpi-pnl-sub">Theo toàn bộ lịch sử</div>
             </div>
-            <div class="space-y-3" id="dashboard-summary"></div>
+            <div class="kpi-card">
+              <div class="kpi-label">Win rate</div>
+              <div id="kpi-winrate" class="kpi-value">0%</div>
+              <div class="kpi-sub">Theo các lệnh đã đóng</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Average R</div>
+              <div id="kpi-r" class="kpi-value">0R</div>
+              <div class="kpi-sub">Hiệu suất kỳ vọng</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Trade Quality</div>
+              <div id="kpi-quality" class="kpi-value">—</div>
+              <div class="kpi-sub">Điểm chất lượng trung bình</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Watchlist</div>
+              <div id="kpi-watchlist" class="kpi-value">0</div>
+              <div class="kpi-sub">Mã đang theo dõi</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Risk Alerts</div>
+              <div id="kpi-alerts" class="kpi-value">0</div>
+              <div class="kpi-sub">Cảnh báo cần xử lý</div>
+            </div>
           </div>
 
-          <div class="glass-panel p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-black uppercase text-emerald-400">Thị trường hiện tại</h3>
+          <div class="grid gap-6 2xl:grid-cols-[1.1fr_.9fr]">
+            <section class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Watchlist hành động</div>
+                  <p class="card-subtitle">Ưu tiên nhóm gần điểm mua, theo dõi và dài hạn.</p>
+                </div>
+                <button class="btn btn-secondary" data-nav="watchlist" type="button">Quản lý</button>
+              </div>
+              <div class="grid gap-4 lg:grid-cols-3">
+                <div>
+                  <div class="sub-head"><span>Near Entry</span><strong id="dash-near-count">0</strong></div>
+                  <div id="dash-near-list" class="stack-sm"></div>
+                </div>
+                <div>
+                  <div class="sub-head"><span>Tracking</span><strong id="dash-watch-count">0</strong></div>
+                  <div id="dash-watch-list" class="stack-sm"></div>
+                </div>
+                <div>
+                  <div class="sub-head"><span>Position / Swing</span><strong id="dash-long-count">0</strong></div>
+                  <div id="dash-long-list" class="stack-sm"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Bảng điều khiển hiệu suất</div>
+                  <p class="card-subtitle">Tự tổng hợp từ nhật ký để bạn ra quyết định tốt hơn.</p>
+                </div>
+              </div>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div class="insight-card">
+                  <div class="insight-label">Sai lầm lặp lại</div>
+                  <div id="top-mistake" class="insight-value">—</div>
+                </div>
+                <div class="insight-card">
+                  <div class="insight-label">Nhóm hiệu quả nhất</div>
+                  <div id="best-sector" class="insight-value">—</div>
+                </div>
+                <div class="insight-card">
+                  <div class="insight-label">Expectancy</div>
+                  <div id="expectancy" class="insight-value">0</div>
+                </div>
+                <div class="insight-card">
+                  <div class="insight-label">Market mode</div>
+                  <div id="market-mode-main" class="insight-value">Bình thường</div>
+                </div>
+              </div>
+              <div class="mt-5">
+                <div class="sub-head"><span>Cảnh báo hành vi</span></div>
+                <div id="dashboard-alerts" class="stack-sm"></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section data-screen="watchlist" class="screen hidden">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Scan & Watchlist</div>
+                <p class="card-subtitle">Quản lý cổ phiếu theo dõi theo nhóm, risk và kế hoạch hành động.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="open-watch-modal" class="btn btn-primary" type="button">Thêm watchlist</button>
+              </div>
             </div>
-            <div class="space-y-3 text-sm text-slate-300">
-              <div class="mini-row"><span>Số ngày phân phối</span><strong id="market-days-summary">0</strong></div>
-              <div class="mini-row"><span>Trạng thái</span><strong id="market-mode-summary">Bình thường</strong></div>
-              <div class="mini-row"><span>Quyền của bạn</span><strong id="user-role-summary">user</strong></div>
+            <div class="grid gap-6 xl:grid-cols-3">
+              <div>
+                <div class="sub-head"><span>Near Entry</span><strong id="wl-near-count">0</strong></div>
+                <div id="watchlist-near" class="stack-md"></div>
+              </div>
+              <div>
+                <div class="sub-head"><span>Tracking</span><strong id="wl-watch-count">0</strong></div>
+                <div id="watchlist-watch" class="stack-md"></div>
+              </div>
+              <div>
+                <div class="sub-head"><span>Position / Swing</span><strong id="wl-long-count">0</strong></div>
+                <div id="watchlist-long" class="stack-md"></div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="tab-market" class="tab-content hidden space-y-6">
-        <div class="glass-panel p-8 border-l-4 border-blue-500">
-          <h3 class="text-xs font-black text-slate-400 uppercase">Ngày Phân Phối VNI</h3>
-          <input type="number" id="market-dist-days" value="0" class="text-7xl font-mono font-black bg-transparent text-white outline-none w-40">
-          <div class="mt-3 text-sm text-slate-400" id="market-note">0-2 ngày: bình thường · 3 ngày: giảm margin · 4 ngày: giảm tỷ trọng · 5+ ngày: ưu tiên tiền mặt</div>
-          <button id="market-save-btn" type="button" class="admin-only hidden mt-4 px-6 py-3 bg-blue-600 rounded-lg text-[10px] font-black uppercase hover:bg-blue-500">Cập nhật toàn nhóm</button>
-        </div>
-      </section>
+        <section data-screen="journal" class="screen hidden">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Bảng thống kê lệnh</div>
+                <p class="card-subtitle">Lưu trữ giao dịch, chất lượng thực thi, sai lầm và biểu đồ kỳ vọng.</p>
+              </div>
+              <button id="open-trade-modal" class="btn btn-primary" type="button">Thêm lệnh</button>
+            </div>
 
-      <section id="tab-journal" class="tab-content hidden space-y-4">
-        <div class="flex flex-wrap justify-between items-center gap-3">
-          <div id="journal-pnl-total" class="text-2xl font-mono font-black text-emerald-400">0đ</div>
-          <button id="add-trade-btn" type="button" class="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase hover:bg-emerald-500">Thêm Lệnh</button>
-        </div>
-        <div class="glass-panel overflow-hidden">
-          <table class="w-full text-left text-xs uppercase">
-            <thead class="bg-black/40 text-slate-500">
-              <tr>
-                <th class="p-5">Ngày</th>
-                <th class="p-5">Mã</th>
-                <th class="p-5">Setup</th>
-                <th class="p-5">Trạng thái</th>
-                <th class="p-5 text-right">PnL</th>
-                <th class="p-5 text-right">Sửa</th>
-              </tr>
-            </thead>
-            <tbody id="journal-body" class="divide-y divide-white/5 text-slate-300"></tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-  </div>
+            <div class="grid gap-3 lg:grid-cols-4 mb-5">
+              <input id="filter-search" class="field-input" placeholder="Tìm theo mã, setup, ngành...">
+              <select id="filter-status" class="field-input">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+              <select id="filter-result" class="field-input">
+                <option value="all">Tất cả kết quả</option>
+                <option value="win">Win</option>
+                <option value="loss">Loss</option>
+                <option value="open">Open</option>
+              </select>
+              <select id="filter-quality" class="field-input">
+                <option value="all">Tất cả quality</option>
+                <option value="A+">A+</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
 
-  <div id="trade-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] hidden items-center justify-center p-4">
-    <div class="glass-panel w-full max-w-2xl p-6">
-      <div class="flex items-center justify-between mb-5">
-        <h3 class="text-lg font-black uppercase text-white" id="trade-modal-title">Thêm lệnh</h3>
-        <button id="trade-modal-close" type="button" class="p-2 rounded-lg bg-white/10 hover:bg-white/20">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+            <div class="table-wrap">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th>Mã</th><th>Ngày mua</th><th>Chiến lược</th><th>Setup</th><th>Ngành</th><th>Entry</th><th>Stop</th><th>P/L %</th><th>R</th><th>Quality</th><th>Execution</th><th>Kết quả</th><th>Sai lầm</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="journal-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section data-screen="playbook" class="screen hidden">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Setup Playbook</div>
+                <p class="card-subtitle">Lưu các setup cốt lõi để chuẩn hóa điều kiện nền và điều kiện kích hoạt.</p>
+              </div>
+              <button id="open-setup-modal" class="btn btn-primary" type="button">Thêm setup</button>
+            </div>
+            <div id="setup-grid" class="grid gap-5 xl:grid-cols-2"></div>
+          </div>
+        </section>
+
+        <section data-screen="sizing" class="screen hidden">
+          <div class="grid gap-6 2xl:grid-cols-[1fr_.9fr]">
+            <section class="card">
+              <div class="card-title">Position Sizing</div>
+              <p class="card-subtitle mb-5">Tính risk theo account, stop loss và tỷ lệ rủi ro cho mỗi giao dịch.</p>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div><label class="field-label">Tài khoản</label><input id="sizing-account" type="number" class="field-input" value="200000000"></div>
+                <div><label class="field-label">Risk % / lệnh</label><input id="sizing-risk" type="number" step="0.1" class="field-input" value="1"></div>
+                <div><label class="field-label">Điểm mua</label><input id="sizing-entry" type="number" step="0.01" class="field-input" value="100"></div>
+                <div><label class="field-label">Stop loss</label><input id="sizing-stop" type="number" step="0.01" class="field-input" value="95"></div>
+              </div>
+              <button id="calc-sizing-btn" class="btn btn-primary mt-5" type="button">Tính position size</button>
+            </section>
+            <section class="card">
+              <div class="card-title">Kết quả</div>
+              <div id="sizing-result" class="stack-sm mt-4"></div>
+            </section>
+          </div>
+        </section>
+
+        <section data-screen="market" class="screen hidden">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Đánh giá thị trường</div>
+                <p class="card-subtitle">Nhập số ngày phân phối, nhóm dẫn dắt và trạng thái tâm lý thị trường.</p>
+              </div>
+              <button id="save-market-btn" class="btn btn-primary" type="button">Lưu thị trường</button>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div><label class="field-label">Số ngày phân phối</label><input id="market-dist-days" type="number" class="field-input" min="0" max="10" value="0"></div>
+              <div><label class="field-label">Tâm lý thị trường</label><select id="market-sentiment" class="field-input"><option>Tích cực</option><option>Trung tính</option><option>Tiêu cực</option></select></div>
+              <div class="xl:col-span-2"><label class="field-label">Ngành dẫn dắt</label><input id="market-leading-sectors" class="field-input" placeholder="Chứng khoán, Công nghệ"></div>
+            </div>
+
+            <div class="mt-4">
+              <label class="field-label">Nhận định</label>
+              <textarea id="market-note" class="field-input min-h-[120px]" placeholder="Ghi nhận nhanh về xu hướng thị trường"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section data-screen="psychology" class="screen hidden">
+          <div class="grid gap-6 2xl:grid-cols-[1.05fr_.95fr]">
+            <section class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Check-in trước phiên</div>
+                  <p class="card-subtitle">Đánh giá trạng thái cá nhân trước khi đưa ra quyết định giao dịch.</p>
+                </div>
+                <button id="save-psychology-btn" class="btn btn-primary" type="button">Lưu check-in</button>
+              </div>
+
+              <div class="grid gap-4">
+                <div><label class="field-label">Năng lượng / 10</label><input id="psy-energy" type="range" min="0" max="10" value="7" class="w-full"><div class="range-value" id="psy-energy-value">7/10</div></div>
+                <div><label class="field-label">Bình tĩnh / 10</label><input id="psy-calm" type="range" min="0" max="10" value="8" class="w-full"><div class="range-value" id="psy-calm-value">8/10</div></div>
+                <div><label class="field-label">FOMO / 10</label><input id="psy-fomo" type="range" min="0" max="10" value="4" class="w-full"><div class="range-value" id="psy-fomo-value">4/10</div></div>
+                <div><label class="field-label">Tự tin / 10</label><input id="psy-confidence" type="range" min="0" max="10" value="6" class="w-full"><div class="range-value" id="psy-confidence-value">6/10</div></div>
+              </div>
+
+              <div class="mt-5">
+                <label class="field-label">Checklist trước phiên</label>
+                <textarea id="psy-checklist" class="field-input min-h-[140px]" placeholder="Ví dụ: Chỉ chọn setup A/B, không mua đuổi, không vào lệnh khi stop quá rộng..."></textarea>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-title">Lịch sử check-in gần nhất</div>
+              <div id="psychology-list" class="stack-sm mt-4"></div>
+            </section>
+          </div>
+        </section>
+
+        <section data-screen="review" class="screen hidden">
+          <div class="grid gap-6 2xl:grid-cols-[1.05fr_.95fr]">
+            <section class="card">
+              <div class="card-head">
+                <div>
+                  <div class="card-title">Review tuần / tháng</div>
+                  <p class="card-subtitle">Tổng hợp từ lịch sử lệnh và cho phép lưu bài học để cải thiện hệ thống.</p>
+                </div>
+                <button id="save-review-btn" class="btn btn-primary" type="button">Lưu review</button>
+              </div>
+
+              <div class="grid gap-4 md:grid-cols-2 mb-5">
+                <div class="insight-card"><div class="insight-label">Tổng lệnh đã đóng</div><div id="review-total-closed" class="insight-value">0</div></div>
+                <div class="insight-card"><div class="insight-label">Lợi nhuận ròng</div><div id="review-net-pnl" class="insight-value">0đ</div></div>
+                <div class="insight-card"><div class="insight-label">Ngày giao dịch hiệu quả</div><div id="review-best-day" class="insight-value">—</div></div>
+                <div class="insight-card"><div class="insight-label">Sai lầm lặp lại</div><div id="review-top-mistake" class="insight-value">—</div></div>
+              </div>
+
+              <div class="mb-4">
+                <label class="field-label">Bài học tuần</label>
+                <textarea id="review-weekly" class="field-input min-h-[130px]"></textarea>
+              </div>
+              <div>
+                <label class="field-label">Bài học tháng</label>
+                <textarea id="review-monthly" class="field-input min-h-[130px]"></textarea>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-title">Hậu kiểm (Post-mortem)</div>
+              <div id="postmortem-list" class="stack-sm mt-4"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <div id="trade-modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="text-xl font-black">Lệnh giao dịch</div>
+        <button id="close-trade-modal" class="btn btn-secondary" type="button">Đóng</button>
       </div>
-
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="text-xs text-slate-400 uppercase">Ngày</label>
-          <input id="trade-date" type="date" class="w-full mt-2 p-3 bg-black/40 rounded-xl border border-white/10 text-white outline-none">
-        </div>
-        <div>
-          <label class="text-xs text-slate-400 uppercase">Mã</label>
-          <input id="trade-ticker" type="text" class="w-full mt-2 p-3 bg-black/40 rounded-xl border border-white/10 text-white outline-none">
-        </div>
-        <div>
-          <label class="text-xs text-slate-400 uppercase">Setup</label>
-          <input id="trade-setup" type="text" class="w-full mt-2 p-3 bg-black/40 rounded-xl border border-white/10 text-white outline-none">
-        </div>
-        <div>
-          <label class="text-xs text-slate-400 uppercase">Trạng thái</label>
-          <select id="trade-status" class="w-full mt-2 p-3 bg-black/40 rounded-xl border border-white/10 text-white outline-none">
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
-        <div class="md:col-span-2">
-          <label class="text-xs text-slate-400 uppercase">PnL</label>
-          <input id="trade-pnl" type="number" step="0.01" class="w-full mt-2 p-3 bg-black/40 rounded-xl border border-white/10 text-white outline-none">
-        </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div><label class="field-label">Ngày mua</label><input id="trade-date" type="date" class="field-input"></div>
+        <div><label class="field-label">Mã</label><input id="trade-symbol" class="field-input" placeholder="FPT"></div>
+        <div><label class="field-label">Chiến lược</label><input id="trade-strategy" class="field-input" placeholder="Mark Minervini"></div>
+        <div><label class="field-label">Setup</label><input id="trade-setup" class="field-input" placeholder="VCP"></div>
+        <div><label class="field-label">Ngành</label><input id="trade-sector" class="field-input" placeholder="Công nghệ"></div>
+        <div><label class="field-label">Entry</label><input id="trade-entry" type="number" step="0.01" class="field-input"></div>
+        <div><label class="field-label">Stop</label><input id="trade-stop" type="number" step="0.01" class="field-input"></div>
+        <div><label class="field-label">P/L %</label><input id="trade-pl-pct" type="number" step="0.01" class="field-input" value="0"></div>
+        <div><label class="field-label">R multiple</label><input id="trade-r-multiple" type="number" step="0.01" class="field-input" value="0"></div>
+        <div><label class="field-label">Quality</label><select id="trade-quality" class="field-input"><option>A+</option><option>A</option><option>B</option><option>C</option></select></div>
+        <div><label class="field-label">Execution</label><select id="trade-execution" class="field-input"><option>Planned</option><option>Deviation</option><option>Tracking</option></select></div>
+        <div><label class="field-label">Trạng thái</label><select id="trade-status" class="field-input"><option value="open">Open</option><option value="closed">Closed</option></select></div>
+        <div><label class="field-label">Kết quả</label><select id="trade-result" class="field-input"><option value="open">Open</option><option value="win">Win</option><option value="loss">Loss</option></select></div>
+        <div class="md:col-span-2"><label class="field-label">Sai lầm</label><input id="trade-mistake" class="field-input" placeholder="Không / FOMO / Gồng lỗ / Bán non"></div>
       </div>
-
-      <div class="flex justify-end gap-3 mt-6">
-        <button id="trade-cancel-btn" type="button" class="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase">Hủy</button>
-        <button id="trade-save-btn" type="button" class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase">Lưu</button>
+      <div class="modal-actions">
+        <button id="cancel-trade" class="btn btn-secondary" type="button">Hủy</button>
+        <button id="save-trade" class="btn btn-primary" type="button">Lưu lệnh</button>
       </div>
     </div>
   </div>
 
-  <div id="chat-container" class="fixed bottom-6 right-6 w-80 h-[400px] glass-panel flex flex-col z-[100] hidden">
-    <div class="p-4 border-b border-white/10 flex justify-between bg-black/40 items-center">
-      <h3 class="text-[10px] font-black text-emerald-400 uppercase">Chat Nhóm</h3>
-      <button id="chat-close-btn" type="button"><i data-lucide="x" class="w-4 h-4 text-white"></i></button>
-    </div>
-    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar"></div>
-    <div class="p-3 border-t border-white/10 bg-black/40 flex gap-2">
-      <input type="text" id="chat-input" class="flex-1 bg-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none" placeholder="Nhập tin nhắn...">
-      <button id="chat-send-btn" type="button" class="p-2 bg-emerald-600 rounded-lg"><i data-lucide="send" class="w-4 h-4 text-white"></i></button>
+  <div id="watch-modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="text-xl font-black">Watchlist</div>
+        <button id="close-watch-modal" class="btn btn-secondary" type="button">Đóng</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div><label class="field-label">Mã</label><input id="watch-symbol" class="field-input" placeholder="FPT"></div>
+        <div><label class="field-label">Nhóm</label><select id="watch-group" class="field-input"><option value="near">Near Entry</option><option value="watch">Tracking</option><option value="long">Position / Swing</option></select></div>
+        <div><label class="field-label">Buy zone</label><input id="watch-buy-zone" class="field-input" placeholder="128 - 132"></div>
+        <div><label class="field-label">Risk</label><select id="watch-risk" class="field-input"><option>Thấp</option><option>Trung bình</option><option>Cao</option></select></div>
+        <div><label class="field-label">Setup / Playbook</label><select id="watch-setup-ref" class="field-input"></select></div>
+        <div><label class="field-label">Trạng thái</label><input id="watch-status" class="field-input" placeholder="Gần điểm mua / Chờ breakout"></div>
+        <div class="md:col-span-2"><label class="field-label">Kế hoạch</label><textarea id="watch-plan" class="field-input min-h-[120px]" placeholder="Canh breakout, volume xác nhận..."></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-watch" class="btn btn-secondary" type="button">Hủy</button>
+        <button id="save-watch" class="btn btn-primary" type="button">Lưu watchlist</button>
+      </div>
     </div>
   </div>
 
-  <button id="chat-toggle-btn" type="button" class="fixed bottom-6 right-6 p-4 bg-emerald-600 text-white rounded-full z-[90] shadow-2xl">
-    <i data-lucide="messages-square"></i>
-  </button>
+  <div id="setup-modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="text-xl font-black">Setup Playbook</div>
+        <button id="close-setup-modal" class="btn btn-secondary" type="button">Đóng</button>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div><label class="field-label">Tên setup</label><input id="setup-name" class="field-input" placeholder="VCP"></div>
+        <div><label class="field-label">Chiến lược</label><input id="setup-strategy" class="field-input" placeholder="Mark Minervini"></div>
+        <div class="md:col-span-2"><label class="field-label">Mô tả</label><textarea id="setup-description" class="field-input min-h-[100px]"></textarea></div>
+        <div class="md:col-span-2"><label class="field-label">Điều kiện nền (mỗi dòng 1 điều kiện)</label><textarea id="setup-base-rules" class="field-input min-h-[130px]"></textarea></div>
+        <div class="md:col-span-2"><label class="field-label">Điều kiện kích hoạt (mỗi dòng 1 điều kiện)</label><textarea id="setup-trigger-rules" class="field-input min-h-[130px]"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cancel-setup" class="btn btn-secondary" type="button">Hủy</button>
+        <button id="save-setup" class="btn btn-primary" type="button">Lưu setup</button>
+      </div>
+    </div>
+  </div>
 
   <script src="supabase.js"></script>
   <script src="app.js"></script>
