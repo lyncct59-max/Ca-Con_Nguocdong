@@ -96,36 +96,78 @@ const App = {
     el.className = isError ? 'mt-4 min-h-[20px] text-sm text-rose-600' : 'mt-4 min-h-[20px] text-sm text-slate-500';
   },
 
+  mapAuthError(err) {
+    const msg = (err && (err.message || err.error_description || err.code)) ? String(err.message || err.error_description || err.code) : 'Đăng nhập thất bại.';
+    if (/Invalid login credentials/i.test(msg)) return 'Sai email hoặc mật khẩu.';
+    if (/Email not confirmed/i.test(msg)) return 'Email chưa được xác nhận. Hãy kiểm tra hộp thư và bấm link xác nhận.';
+    if (/User already registered/i.test(msg)) return 'Email này đã được đăng ký.';
+    if (/Password should be at least/i.test(msg)) return 'Mật khẩu phải có ít nhất 6 ký tự.';
+    if (/signup is disabled/i.test(msg)) return 'Tính năng tạo tài khoản đang bị tắt trong Supabase.';
+    if (/Database error saving new user/i.test(msg)) return 'Đăng ký thành công một phần nhưng hồ sơ chưa tạo được. Hãy chạy schema.sql rồi thử lại.';
+    if (/fetch/i.test(msg) || /network/i.test(msg)) return 'Không kết nối được tới Supabase. Kiểm tra URL, key hoặc mạng.';
+    return msg;
+  },
+
   async initAuth() {
-    const { data, error } = await this.sb.auth.getSession();
-    if (error) return this.setAuthMessage(error.message, true);
-    await this.handleSession(data.session);
-    this.sb.auth.onAuthStateChange(async (_event, session) => {
-      await this.handleSession(session);
-    });
+    try {
+      const { data, error } = await this.sb.auth.getSession();
+      if (error) throw error;
+      await this.handleSession(data.session || null);
+      this.sb.auth.onAuthStateChange(async (_event, session) => {
+        try {
+          await this.handleSession(session || null);
+        } catch (err) {
+          console.error(err);
+          this.setAuthMessage(this.mapAuthError(err), true);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      this.setAuthMessage(this.mapAuthError(err), true);
+    }
   },
 
   async submitAuth() {
-    const email = document.getElementById('auth-email').value.trim();
+    const email = document.getElementById('auth-email').value.trim().toLowerCase();
     const password = document.getElementById('auth-password').value.trim();
     const name = document.getElementById('auth-name').value.trim();
+    const submitBtn = document.getElementById('auth-submit');
 
     try {
       if (!email || !password) throw new Error('Vui lòng nhập email và mật khẩu.');
+      submitBtn.disabled = true;
+      this.setAuthMessage(this.authMode === 'register' ? 'Đang tạo tài khoản...' : 'Đang đăng nhập...');
+
       if (this.authMode === 'register') {
-        const { error } = await this.sb.auth.signUp({
+        const { data, error } = await this.sb.auth.signUp({
           email,
           password,
           options: { data: { full_name: name || email.split('@')[0] } }
         });
         if (error) throw error;
-        this.setAuthMessage('Tài khoản đã được tạo. Kiểm tra email nếu bật xác minh.');
+
+        if (data?.session) {
+          this.setAuthMessage('Tạo tài khoản và đăng nhập thành công.');
+          await this.handleSession(data.session);
+        } else {
+          this.setAuthMessage('Tài khoản đã được tạo. Hãy kiểm tra email để xác nhận tài khoản trước khi đăng nhập.');
+        }
       } else {
-        const { error } = await this.sb.auth.signInWithPassword({ email, password });
+        const { data, error } = await this.sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (data?.session) {
+          await this.handleSession(data.session);
+        } else {
+          const { data: sessionData, error: sessionErr } = await this.sb.auth.getSession();
+          if (sessionErr) throw sessionErr;
+          await this.handleSession(sessionData.session || null);
+        }
       }
     } catch (e) {
-      this.setAuthMessage(e.message || 'Không thể thực hiện thao tác.', true);
+      console.error(e);
+      this.setAuthMessage(this.mapAuthError(e), true);
+    } finally {
+      submitBtn.disabled = false;
     }
   },
 
@@ -133,7 +175,7 @@ const App = {
     const email = document.getElementById('auth-email').value.trim();
     if (!email) return this.setAuthMessage('Nhập email để đặt lại mật khẩu.', true);
     const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
-    if (error) this.setAuthMessage(error.message, true);
+    if (error) this.setAuthMessage(this.mapAuthError(error), true);
     else this.setAuthMessage('Đã gửi email đặt lại mật khẩu.');
   },
 
@@ -150,25 +192,34 @@ const App = {
       return;
     }
 
-    this.user = session.user;
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app-shell').classList.remove('hidden');
-    document.getElementById('user-name').textContent = this.user.user_metadata?.full_name || this.user.email?.split('@')[0] || 'Trader';
-    document.getElementById('user-email').textContent = this.user.email || '';
-    document.getElementById('sync-status').textContent = 'Đang tải...';
+    try {
+      this.user = session.user;
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-shell').classList.remove('hidden');
+      document.getElementById('user-name').textContent = this.user.user_metadata?.full_name || this.user.email?.split('@')[0] || 'Trader';
+      document.getElementById('user-email').textContent = this.user.email || '';
+      document.getElementById('sync-status').textContent = 'Đang tải...';
 
-    await this.ensureProfile();
-    await this.loadRole();
-    await Promise.all([
-      this.loadTrades(),
-      this.loadWatchlist(),
-      this.loadSetups(),
-      this.loadPsychology(),
-      this.loadReviews(),
-      this.loadMarket()
-    ]);
-    this.renderAll();
-    document.getElementById('sync-status').textContent = 'Đã đồng bộ';
+      await this.ensureProfile();
+      await this.loadRole();
+      await Promise.all([
+        this.loadTrades(),
+        this.loadWatchlist(),
+        this.loadSetups(),
+        this.loadPsychology(),
+        this.loadReviews(),
+        this.loadMarket()
+      ]);
+      this.renderAll();
+      document.getElementById('sync-status').textContent = 'Đã đồng bộ';
+      this.setAuthMessage('');
+    } catch (err) {
+      console.error(err);
+      document.getElementById('sync-status').textContent = 'Lỗi đồng bộ';
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-shell').classList.remove('hidden');
+      this.toast('Đăng nhập thành công nhưng dữ liệu chưa tải được. Hãy kiểm tra schema.sql hoặc quyền bảng.', true);
+    }
   },
 
   async ensureProfile() {
