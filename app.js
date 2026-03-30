@@ -195,111 +195,33 @@ const App = {
   },
 
   initIntro() {
+    // Intro disabled in v3 to avoid full-screen blank state on hosting.
     const overlay = document.getElementById('intro-overlay');
-    const canvas = document.getElementById('intro-canvas');
-    const skipBtn = document.getElementById('intro-skip');
-    if (!overlay || !canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    const pointer = { x: window.innerWidth * 0.55, y: window.innerHeight * 0.5 };
-    const DPR = Math.max(1, window.devicePixelRatio || 1);
-    const fish = [];
-    const makeFish = (type, i) => ({
-      type,
-      x: Math.random() * window.innerWidth,
-      y: (i + 1) * (window.innerHeight / 9),
-      vx: type === 'child' ? 0 : 0.35 + Math.random() * 0.35,
-      amp: 8 + Math.random() * 10,
-      phase: Math.random() * Math.PI * 2,
-      size: type === 'child' ? 1.2 : 1.8 + Math.random() * 0.8,
-      hue: type === 'child' ? 160 : 0
-    });
-
-    for (let i = 0; i < 8; i++) fish.push(makeFish('shark', i));
-    fish.push({ type: 'child', x: window.innerWidth * 0.35, y: window.innerHeight * 0.52, vx: 0, amp: 12, phase: 0, size: 1.15, hue: 160 });
-
-    const resize = () => {
-      canvas.width = Math.floor(window.innerWidth * DPR);
-      canvas.height = Math.floor(window.innerHeight * DPR);
-      canvas.style.width = window.innerWidth + 'px';
-      canvas.style.height = window.innerHeight + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    };
-
-    const drawFish = (f) => {
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      const dx = f.type === 'child' ? pointer.x - f.x : f.vx * 140;
-      const dy = f.type === 'child' ? pointer.y - f.y : Math.sin(f.phase) * 14;
-      ctx.rotate(Math.atan2(dy, dx));
-      ctx.scale(f.size, f.size);
-      ctx.lineWidth = f.type === 'child' ? 2.1 : 1.3;
-      ctx.strokeStyle = f.type === 'child' ? 'rgba(76,255,196,.95)' : 'rgba(215,235,255,.35)';
-      ctx.shadowBlur = f.type === 'child' ? 24 : 0;
-      ctx.shadowColor = f.type === 'child' ? 'rgba(76,255,196,.7)' : 'transparent';
-      ctx.beginPath();
-      ctx.moveTo(-26, 0);
-      ctx.quadraticCurveTo(-6, -16, 18, -10);
-      ctx.quadraticCurveTo(34, -4, 42, 0);
-      ctx.quadraticCurveTo(34, 4, 18, 10);
-      ctx.quadraticCurveTo(-6, 16, -26, 0);
-      ctx.moveTo(-26, 0);
-      ctx.lineTo(-40, -12);
-      ctx.moveTo(-26, 0);
-      ctx.lineTo(-40, 12);
-      ctx.moveTo(-2, -2);
-      ctx.arc(16, -2, 1.2, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    let raf = 0;
-    const render = () => {
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      const g = ctx.createLinearGradient(0, 0, 0, window.innerHeight);
-      g.addColorStop(0, 'rgba(2, 6, 23, .95)');
-      g.addColorStop(.55, 'rgba(6, 25, 50, .92)');
-      g.addColorStop(1, 'rgba(0, 82, 115, .88)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-      fish.forEach((f, idx) => {
-        f.phase += 0.02 + idx * 0.001;
-        if (f.type === 'child') {
-          f.x += (pointer.x - f.x) * 0.045;
-          f.y += (pointer.y - f.y) * 0.04;
-        } else {
-          f.x += f.vx;
-          f.y += Math.sin(f.phase) * 0.35;
-          if (f.x > window.innerWidth + 80) f.x = -80;
-        }
-        drawFish(f);
-      });
-      raf = requestAnimationFrame(render);
-    };
-
-    resize();
-    render();
-    window.addEventListener('resize', resize);
-    overlay.addEventListener('pointermove', (e) => {
-      pointer.x = e.clientX;
-      pointer.y = e.clientY;
-    });
-    const closeIntro = () => {
-      overlay.classList.add('hidden');
-      cancelAnimationFrame(raf);
-    };
-    skipBtn?.addEventListener('click', closeIntro, { once: true });
-    setTimeout(closeIntro, 4500);
+    if (overlay) overlay.classList.add('hidden');
   },
 
   bindEvents() {
     document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => this.switchTab(btn.dataset.tab)));
-    document.getElementById('theme-toggle').addEventListener('click', () => this.applyTheme(this.state.theme === 'dark' ? 'light' : 'dark'));
-    document.getElementById('global-search').addEventListener('input', () => this.renderJournalTable());
-    ['filter-start','filter-end','filter-status','filter-result'].forEach(id => document.getElementById(id).addEventListener('input', () => this.renderJournalTable()));
-    ['energy-input','calm-input','fomo-input','confidence-input'].forEach(id => document.getElementById(id).addEventListener('input', () => this.updateMindsetValues()));
-    ['breath-in','breath-hold','breath-out'].forEach(id => document.getElementById(id).addEventListener('input', () => this.updateBreathSummary()));
-    ['trade-theory-file','trade-actual-file','pattern-image-file'].forEach(id => document.getElementById(id).addEventListener('change', (e) => this.handleFilePreview(e)));
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) themeToggle.addEventListener('click', () => this.applyTheme(this.state.theme === 'dark' ? 'light' : 'dark'));
+    const globalSearch = document.getElementById('global-search');
+    if (globalSearch) globalSearch.addEventListener('input', () => this.renderJournalTable());
+    ['filter-start','filter-end','filter-status','filter-result'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => this.renderJournalTable());
+    });
+    ['energy-input','calm-input','fomo-input','confidence-input'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => this.updateMindsetValues());
+    });
+    ['breath-in','breath-hold','breath-out'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => this.updateBreathSummary());
+    });
+    ['trade-theory-file','trade-actual-file','pattern-image-file'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', (e) => this.handleFilePreview(e));
+    });
   },
 
   lockApp(locked) {
@@ -1132,7 +1054,18 @@ const AuthUI = {
 
 window.App = App;
 window.AuthUI = AuthUI;
-window.addEventListener('DOMContentLoaded', () => App.init());
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    App.init();
+  } catch (e) {
+    console.error(e);
+    const box = document.getElementById('auth-message');
+    if (box) {
+      box.textContent = 'Lỗi khởi tạo: ' + (e.message || e);
+      box.classList.add('error');
+    }
+  }
+});
 
 
 window.addEventListener('error', (e) => {
