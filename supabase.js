@@ -1,6 +1,6 @@
 
-window.SUPABASE_URL = "YOUR_SUPABASE_URL";
-window.SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+window.SUPABASE_URL = "https://unlrlmxlngxhstbnrzax.supabase.co";
+window.SUPABASE_ANON_KEY = "sb_publishable_DB9DIVS7RWnE4rEfY4GaHg_Kwc8rhya";
 
 (function () {
   if (!window.supabase) {
