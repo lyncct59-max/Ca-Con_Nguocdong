@@ -12,21 +12,19 @@ const App = {
     this.setToday();
     this.updateRangeValues();
     if (!this.sb) {
-      this.showLoginAfterIntro();
+      const login = document.getElementById('login-modal');
+      if (login) login.classList.remove('hidden');
       return this.toast('Hãy cấu hình Supabase trong supabase.js', true);
     }
-    this.startIntroFlow();
     this.sb.auth.onAuthStateChange(async (_e, session) => { await this.handleSession(session); });
-    this.sb.auth.getSession().then(({data}) => { this._initialSession = data.session; });
+    this.sb.auth.getSession().then(({data}) => this.handleSession(data.session));
   },
 
   bindUI() {
     document.getElementById('auth-tab-login').onclick = () => this.setAuthMode('login');
     document.getElementById('auth-tab-register').onclick = () => this.setAuthMode('register');
     document.getElementById('auth-submit-btn').onclick = () => this.submitAuth();
-    document.getElementById('auth-reset-btn').onclick = () => this.resetPassword();
-    const enterBtn=document.getElementById('intro-enter-btn'); if(enterBtn) enterBtn.onclick=()=>this.finishIntroAndRoute();
-    document.getElementById('logout-btn').onclick = () => this.sb.auth.signOut();
+    document.getElementById('auth-reset-btn').onclick = () => this.resetPassword();    document.getElementById('logout-btn').onclick = () => this.sb.auth.signOut();
     document.querySelectorAll('.side-btn').forEach(btn => btn.onclick = () => this.switchTab(btn.dataset.tab));
     document.querySelectorAll('[data-go]').forEach(btn => btn.onclick = () => this.switchTab(btn.dataset.go));
     ['btn-open-trade','btn-open-trade-2'].forEach(id => document.getElementById(id).onclick = () => this.openTradeModal());
@@ -97,12 +95,8 @@ const App = {
     const { error } = await this.sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
     if (error) this.setAuthMessage(error.message, true); else this.setAuthMessage('Đã gửi email đặt lại mật khẩu.');
   },
-  async handleSession(session, introFinished = false) {
+  async handleSession(session) {
     const login = document.getElementById('login-modal');
-    if (!introFinished && document.getElementById('intro-splash')) {
-      this._initialSession = session ?? null;
-      return;
-    }
     if (!session?.user) {
       this.user = null;
       if (login) login.classList.remove('hidden');
